@@ -191,7 +191,7 @@ async function main() {
   const clients = ['Entreprise Alpha', 'Société Beta', 'Groupe Gamma', 'Corporation Delta', 'Studio Epsilon', 'Agence Zeta', 'Boutique Eta', 'Commerce Theta', 'Service Iota', 'Industrie Kappa']
   const concernes = ['Brochure publicitaire', 'Site web vitrine', 'Application mobile', 'Identité visuelle', 'Packaging produit', 'Stand salon', 'Catalogue produit', 'Vidéo corporate', 'Support formation', 'Interface utilisateur']
 
-  for (let i = 6; i <= 40; i++) {
+  for (let i = 6; i <= 100; i++) {
     // Alternance entre 2024 (24) et 2025 (25) pour plus de diversité
     const year = i % 2 === 0 ? '24' : '25'
     await prisma.project.create({
@@ -216,7 +216,7 @@ async function main() {
     })
   }
 
-  console.log('40 projets de test créés avec succès')
+  console.log('100 projets de test créés avec succès')
 }
 
 main()

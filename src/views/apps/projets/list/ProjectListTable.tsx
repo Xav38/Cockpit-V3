@@ -412,6 +412,40 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     }
   }
 
+  const handleImportanceChange = async (projectId: string, newValue: number | null) => {
+    if (!newValue || newValue < 1 || newValue > 3) return
+    
+    setLoading(projectId)
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ importance: newValue })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+      
+      const updatedProject = await response.json()
+      
+      // Mettre à jour les données locales
+      setData(prevData => 
+        prevData.map(project => 
+          project.id === projectId 
+            ? { ...project, importance: newValue }
+            : project
+        )
+      )
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(null)
+    }
+  }
+
   const handleFieldUpdate = async (projectId: string, field: string, value: any) => {
     const key = `${projectId}-${field}`
     setUpdating(prev => ({ ...prev, [key]: true }))
@@ -892,13 +926,14 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         )
       }),
       columnHelper.accessor('importance', {
-        header: 'Chance de gains',
+        header: 'Chances de gains',
         cell: ({ row }) => (
           <Rating
             value={row.original.importance}
-            readOnly
             size='small'
             max={3}
+            disabled={loading === row.original.id}
+            onChange={(_, newValue) => handleImportanceChange(row.original.id, newValue)}
           />
         )
       }),
@@ -940,7 +975,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         enableSorting: false
       }
     ],
-    [data, loading, handleImperatifChange, formatPrice, formatMarge, getUserAvatar, options, updating, handleFieldUpdate]
+    [data, loading, handleImperatifChange, handleImportanceChange, formatPrice, formatMarge, getUserAvatar, options, updating, handleFieldUpdate]
   )
 
   const table = useReactTable({
@@ -1157,15 +1192,25 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       fullWidth
                       sx={{
                         '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'background.paper',
+                          '& input': {
+                            color: 'text.primary',
+                          },
                           '&:hover fieldset': {
                             borderColor: 'primary.main',
                           },
                           '&.Mui-focused fieldset': {
                             borderColor: 'primary.main',
                           },
+                          '& fieldset': {
+                            borderColor: 'divider',
+                          },
                         },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: 'primary.main',
+                        '& .MuiInputLabel-root': {
+                          color: 'text.secondary',
+                          '&.Mui-focused': {
+                            color: 'primary.main',
+                          },
                         },
                       }}
                     />
@@ -1181,15 +1226,25 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       fullWidth
                       sx={{
                         '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'background.paper',
+                          '& input': {
+                            color: 'text.primary',
+                          },
                           '&:hover fieldset': {
                             borderColor: 'primary.main',
                           },
                           '&.Mui-focused fieldset': {
                             borderColor: 'primary.main',
                           },
+                          '& fieldset': {
+                            borderColor: 'divider',
+                          },
                         },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: 'primary.main',
+                        '& .MuiInputLabel-root': {
+                          color: 'text.secondary',
+                          '&.Mui-focused': {
+                            color: 'primary.main',
+                          },
                         },
                       }}
                     />
@@ -1205,15 +1260,25 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       fullWidth
                       sx={{
                         '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'background.paper',
+                          '& input': {
+                            color: 'text.primary',
+                          },
                           '&:hover fieldset': {
                             borderColor: 'primary.main',
                           },
                           '&.Mui-focused fieldset': {
                             borderColor: 'primary.main',
                           },
+                          '& fieldset': {
+                            borderColor: 'divider',
+                          },
                         },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: 'primary.main',
+                        '& .MuiInputLabel-root': {
+                          color: 'text.secondary',
+                          '&.Mui-focused': {
+                            color: 'primary.main',
+                          },
                         },
                       }}
                     />
@@ -1229,15 +1294,25 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       fullWidth
                       sx={{
                         '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'background.paper',
+                          '& input': {
+                            color: 'text.primary',
+                          },
                           '&:hover fieldset': {
                             borderColor: 'primary.main',
                           },
                           '&.Mui-focused fieldset': {
                             borderColor: 'primary.main',
                           },
+                          '& fieldset': {
+                            borderColor: 'divider',
+                          },
                         },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                          color: 'primary.main',
+                        '& .MuiInputLabel-root': {
+                          color: 'text.secondary',
+                          '&.Mui-focused': {
+                            color: 'primary.main',
+                          },
                         },
                       }}
                     />
@@ -1357,7 +1432,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                     </FormControl>
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
-                    <Typography variant='caption' display='block' sx={{ mb: 1 }}>Chance de gains</Typography>
+                    <Typography variant='caption' display='block' sx={{ mb: 1 }}>Chances de gains</Typography>
                     <FormControl size='small' fullWidth>
                       <Select
                         displayEmpty
