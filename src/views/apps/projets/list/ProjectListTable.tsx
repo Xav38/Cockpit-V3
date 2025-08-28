@@ -28,6 +28,10 @@ import Accordion from '@mui/material/Accordion'
 import AccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import Grid from '@mui/material/Grid'
+import Autocomplete from '@mui/material/Autocomplete'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import RadioGroup from '@mui/material/RadioGroup'
+import Radio from '@mui/material/Radio'
 import type { TextFieldProps } from '@mui/material/TextField'
 
 // Third-party Imports
@@ -191,6 +195,9 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [margeMax, setMargeMax] = useState('')
   const [prixVenteMin, setPrixVenteMin] = useState('')
   const [prixVenteMax, setPrixVenteMax] = useState('')
+  const [imperatifFilter, setImperatifFilter] = useState('')
+  const [importanceFilter, setImportanceFilter] = useState('')
+  const [tagsFilter, setTagsFilter] = useState<string[]>([])
 
   useEffect(() => {
     fetchOptions()
@@ -318,12 +325,36 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       )
     }
 
+    // Filtrage par impératif
+    if (imperatifFilter) {
+      const isImperatif = imperatifFilter === 'true'
+      filtered = filtered.filter(project => project.imperatif === isImperatif)
+    }
+
+    // Filtrage par importance
+    if (importanceFilter) {
+      const importance = parseInt(importanceFilter)
+      filtered = filtered.filter(project => project.importance === importance)
+    }
+
+    // Filtrage par tags
+    if (tagsFilter.length > 0) {
+      filtered = filtered.filter(project => 
+        project.tags && project.tags.some(tag => 
+          tagsFilter.some(filterTag => 
+            tag.toLowerCase().includes(filterTag.toLowerCase())
+          )
+        )
+      )
+    }
+
     return filtered
   }, [
     data, statusFilter, etapeFilter, clientFilter, concerneFilter, numeroOREFilter,
     vendeurFilter, chiffreurFilter, chefProjetFilter,
     dateDemandeFrom, dateDemandeTo, delaiFrom, delaiTo,
-    prixAchatMin, prixAchatMax, margeMin, margeMax, prixVenteMin, prixVenteMax
+    prixAchatMin, prixAchatMax, margeMin, margeMax, prixVenteMin, prixVenteMax,
+    imperatifFilter, importanceFilter, tagsFilter
   ])
 
   const formatDate = (dateString: string) => {
@@ -861,7 +892,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         )
       }),
       columnHelper.accessor('importance', {
-        header: 'Importance',
+        header: 'Chance de gains',
         cell: ({ row }) => (
           <Rating
             value={row.original.importance}
@@ -1124,17 +1155,43 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       onChange={(e) => setDateDemandeFrom(e.target.value)}
                       InputLabelProps={{ shrink: true }}
                       fullWidth
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: 'primary.main',
+                        },
+                      }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       size='small'
-                      label='Date demande jusqu’à'
+                      label="Date demande jusqu'à"
                       type='date'
                       value={dateDemandeTo}
                       onChange={(e) => setDateDemandeTo(e.target.value)}
                       InputLabelProps={{ shrink: true }}
                       fullWidth
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: 'primary.main',
+                        },
+                      }}
                     />
                   </Grid>
                   <Grid item xs={6}>
@@ -1146,17 +1203,43 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       onChange={(e) => setDelaiFrom(e.target.value)}
                       InputLabelProps={{ shrink: true }}
                       fullWidth
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: 'primary.main',
+                        },
+                      }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       size='small'
-                      label='Délai jusqu’à'
+                      label="Délai jusqu'à"
                       type='date'
                       value={delaiTo}
                       onChange={(e) => setDelaiTo(e.target.value)}
                       InputLabelProps={{ shrink: true }}
                       fullWidth
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                        },
+                        '& .MuiInputLabel-root.Mui-focused': {
+                          color: 'primary.main',
+                        },
+                      }}
                     />
                   </Grid>
                 </Grid>
@@ -1237,6 +1320,108 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                   </Grid>
                 </Grid>
               </Grid>
+
+              {/* Section Caractéristiques spéciales */}
+              <Grid item xs={12}>
+                <Typography variant='subtitle2' sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                  <i className='ri-settings-3-line' style={{ marginRight: 8 }} />
+                  Caractéristiques spéciales
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant='caption' display='block' sx={{ mb: 1 }}>Urgence</Typography>
+                    <FormControl size='small' fullWidth>
+                      <Select
+                        displayEmpty
+                        value={imperatifFilter}
+                        onChange={(e) => setImperatifFilter(e.target.value)}
+                        renderValue={(value) => {
+                          if (value === '') return 'Tous les projets'
+                          return value === 'true' ? 'Projets impératifs' : 'Projets flexibles'
+                        }}
+                      >
+                        <MenuItem value=''>Tous les projets</MenuItem>
+                        <MenuItem value='true'>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Switch checked disabled size='small' color='error' />
+                            <Typography>Impératifs</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value='false'>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Switch disabled size='small' color='success' />
+                            <Typography>Flexibles</Typography>
+                          </Box>
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant='caption' display='block' sx={{ mb: 1 }}>Chance de gains</Typography>
+                    <FormControl size='small' fullWidth>
+                      <Select
+                        displayEmpty
+                        value={importanceFilter}
+                        onChange={(e) => setImportanceFilter(e.target.value)}
+                        renderValue={(value) => {
+                          if (value === '') return 'Toutes les chances'
+                          return `Chance ${value}/3`
+                        }}
+                      >
+                        <MenuItem value=''>Toutes les chances</MenuItem>
+                        <MenuItem value='1'>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Rating value={1} readOnly size='small' max={3} />
+                            <Typography>Faible (1/3)</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value='2'>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Rating value={2} readOnly size='small' max={3} />
+                            <Typography>Moyenne (2/3)</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value='3'>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Rating value={3} readOnly size='small' max={3} />
+                            <Typography>Haute (3/3)</Typography>
+                          </Box>
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant='caption' display='block' sx={{ mb: 1 }}>Tags</Typography>
+                    <Autocomplete
+                      multiple
+                      size='small'
+                      options={Array.from(new Set(data.flatMap(project => project.tags || [])))}
+                      value={tagsFilter}
+                      onChange={(_, newValue) => setTagsFilter(newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder='Sélectionner des tags'
+                        />
+                      )}
+                      renderTags={(tagValue, getTagProps) =>
+                        tagValue.map((option, index) => {
+                          const { key, ...chipProps } = getTagProps({ index })
+                          return (
+                            <Chip
+                              key={option}
+                              variant='outlined'
+                              label={option}
+                              size='small'
+                              {...chipProps}
+                            />
+                          )
+                        })
+                      }
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
             </Grid>
             
             {/* Actions */}
@@ -1268,6 +1453,9 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                   setMargeMax('')
                   setPrixVenteMin('')
                   setPrixVenteMax('')
+                  setImperatifFilter('')
+                  setImportanceFilter('')
+                  setTagsFilter([])
                 }}
               >
                 Réinitialiser tous les filtres

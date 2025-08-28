@@ -82,7 +82,7 @@ async function main() {
   // Créer des projets de test
   await prisma.project.create({
     data: {
-      numeroORE: 'ORE-2024-001',
+      numeroORE: 'ORE-24-00001',
       client: 'Entreprise ABC',
       concerne: 'Signalétique bureau',
       dateDemande: new Date('2024-01-15'),
@@ -103,7 +103,7 @@ async function main() {
 
   await prisma.project.create({
     data: {
-      numeroORE: 'ORE-2024-002',
+      numeroORE: 'ORE-24-00002',
       client: 'Société XYZ',
       concerne: 'Kakémonos événement',
       dateDemande: new Date('2024-01-20'),
@@ -124,7 +124,7 @@ async function main() {
 
   await prisma.project.create({
     data: {
-      numeroORE: 'ORE-2024-003',
+      numeroORE: 'ORE-24-00003',
       client: 'SARL Innovation',
       concerne: 'Habillage véhicule',
       dateDemande: new Date('2024-01-10'),
@@ -145,7 +145,7 @@ async function main() {
 
   await prisma.project.create({
     data: {
-      numeroORE: 'ORE-2024-004',
+      numeroORE: 'ORE-24-00004',
       client: 'Tech Solutions',
       concerne: 'Stand salon professionnel',
       dateDemande: new Date('2024-02-01'),
@@ -166,7 +166,7 @@ async function main() {
 
   await prisma.project.create({
     data: {
-      numeroORE: 'ORE-2024-005',
+      numeroORE: 'ORE-24-00005',
       client: 'Restaurant Le Gourmand',
       concerne: 'Menu et supports marketing',
       dateDemande: new Date('2024-02-05'),
@@ -192,9 +192,11 @@ async function main() {
   const concernes = ['Brochure publicitaire', 'Site web vitrine', 'Application mobile', 'Identité visuelle', 'Packaging produit', 'Stand salon', 'Catalogue produit', 'Vidéo corporate', 'Support formation', 'Interface utilisateur']
 
   for (let i = 6; i <= 40; i++) {
+    // Alternance entre 2024 (24) et 2025 (25) pour plus de diversité
+    const year = i % 2 === 0 ? '24' : '25'
     await prisma.project.create({
       data: {
-        numeroORE: `ORE-2024-${i.toString().padStart(3, '0')}`,
+        numeroORE: `ORE-${year}-${i.toString().padStart(5, '0')}`,
         client: clients[Math.floor(Math.random() * clients.length)],
         concerne: concernes[Math.floor(Math.random() * concernes.length)],
         dateDemande: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
