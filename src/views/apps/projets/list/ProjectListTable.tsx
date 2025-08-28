@@ -24,6 +24,10 @@ import ClickAwayListener from '@mui/material/ClickAwayListener'
 import Fade from '@mui/material/Fade'
 import Paper from '@mui/material/Paper'
 import Box from '@mui/material/Box'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import Grid from '@mui/material/Grid'
 import type { TextFieldProps } from '@mui/material/TextField'
 
 // Third-party Imports
@@ -169,6 +173,24 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [loading, setLoading] = useState<string | null>(null)
   const [options, setOptions] = useState<OptionsType | null>(null)
   const [updating, setUpdating] = useState<{ [key: string]: boolean }>({})
+  const [statusFilter, setStatusFilter] = useState('')
+  const [etapeFilter, setEtapeFilter] = useState('')
+  const [clientFilter, setClientFilter] = useState('')
+  const [concerneFilter, setConcerneFilter] = useState('')
+  const [numeroOREFilter, setNumeroOREFilter] = useState('')
+  const [vendeurFilter, setVendeurFilter] = useState('')
+  const [chiffreurFilter, setChiffreurFilter] = useState('')
+  const [chefProjetFilter, setChefProjetFilter] = useState('')
+  const [dateDemandeFrom, setDateDemandeFrom] = useState('')
+  const [dateDemandeTo, setDateDemandeTo] = useState('')
+  const [delaiFrom, setDelaiFrom] = useState('')
+  const [delaiTo, setDelaiTo] = useState('')
+  const [prixAchatMin, setPrixAchatMin] = useState('')
+  const [prixAchatMax, setPrixAchatMax] = useState('')
+  const [margeMin, setMargeMin] = useState('')
+  const [margeMax, setMargeMax] = useState('')
+  const [prixVenteMin, setPrixVenteMin] = useState('')
+  const [prixVenteMax, setPrixVenteMax] = useState('')
 
   useEffect(() => {
     fetchOptions()
@@ -185,6 +207,124 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       console.error('Erreur lors de la récupération des options:', error)
     }
   }
+
+  // Fonction de filtrage personnalisée
+  const filteredData = useMemo(() => {
+    let filtered = data
+
+    // Filtrage par statut
+    if (statusFilter) {
+      filtered = filtered.filter(project => project.status === statusFilter)
+    }
+
+    // Filtrage par étape
+    if (etapeFilter) {
+      filtered = filtered.filter(project => project.etape === etapeFilter)
+    }
+
+    // Filtrage par texte
+    if (clientFilter) {
+      filtered = filtered.filter(project => 
+        project.client.toLowerCase().includes(clientFilter.toLowerCase())
+      )
+    }
+
+    if (concerneFilter) {
+      filtered = filtered.filter(project => 
+        project.concerne.toLowerCase().includes(concerneFilter.toLowerCase())
+      )
+    }
+
+    if (numeroOREFilter) {
+      filtered = filtered.filter(project => 
+        project.numeroORE.toLowerCase().includes(numeroOREFilter.toLowerCase())
+      )
+    }
+
+    // Filtrage par utilisateurs
+    if (vendeurFilter) {
+      filtered = filtered.filter(project => project.vendeur?.id === vendeurFilter)
+    }
+
+    if (chiffreurFilter) {
+      filtered = filtered.filter(project => project.chiffreur?.id === chiffreurFilter)
+    }
+
+    if (chefProjetFilter) {
+      filtered = filtered.filter(project => project.chefDeProjet?.id === chefProjetFilter)
+    }
+
+    // Filtrage par plages de dates
+    if (dateDemandeFrom) {
+      const fromDate = new Date(dateDemandeFrom)
+      filtered = filtered.filter(project => new Date(project.dateDemande) >= fromDate)
+    }
+
+    if (dateDemandeTo) {
+      const toDate = new Date(dateDemandeTo)
+      filtered = filtered.filter(project => new Date(project.dateDemande) <= toDate)
+    }
+
+    if (delaiFrom) {
+      const fromDate = new Date(delaiFrom)
+      filtered = filtered.filter(project => new Date(project.delai) >= fromDate)
+    }
+
+    if (delaiTo) {
+      const toDate = new Date(delaiTo)
+      filtered = filtered.filter(project => new Date(project.delai) <= toDate)
+    }
+
+    // Filtrage par plages numériques
+    if (prixAchatMin) {
+      const min = parseFloat(prixAchatMin)
+      filtered = filtered.filter(project => 
+        project.prixAchat && project.prixAchat >= min
+      )
+    }
+
+    if (prixAchatMax) {
+      const max = parseFloat(prixAchatMax)
+      filtered = filtered.filter(project => 
+        project.prixAchat && project.prixAchat <= max
+      )
+    }
+
+    if (margeMin) {
+      const min = parseFloat(margeMin)
+      filtered = filtered.filter(project => 
+        project.marge && project.marge >= min
+      )
+    }
+
+    if (margeMax) {
+      const max = parseFloat(margeMax)
+      filtered = filtered.filter(project => 
+        project.marge && project.marge <= max
+      )
+    }
+
+    if (prixVenteMin) {
+      const min = parseFloat(prixVenteMin)
+      filtered = filtered.filter(project => 
+        project.prixVente && project.prixVente >= min
+      )
+    }
+
+    if (prixVenteMax) {
+      const max = parseFloat(prixVenteMax)
+      filtered = filtered.filter(project => 
+        project.prixVente && project.prixVente <= max
+      )
+    }
+
+    return filtered
+  }, [
+    data, statusFilter, etapeFilter, clientFilter, concerneFilter, numeroOREFilter,
+    vendeurFilter, chiffreurFilter, chefProjetFilter,
+    dateDemandeFrom, dateDemandeTo, delaiFrom, delaiTo,
+    prixAchatMin, prixAchatMax, margeMin, margeMax, prixVenteMin, prixVenteMax
+  ])
 
   const formatDate = (dateString: string) => {
     try {
@@ -773,7 +913,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   )
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     filterFns: {
       fuzzy: fuzzyFilter
@@ -804,13 +944,339 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     <Card>
       <CardHeader title='Liste des Projets' />
       <Divider />
-      <div className='flex justify-between flex-col items-start sm:flex-row sm:items-center gap-y-4 p-5'>
-        <DebouncedInput
-          value={globalFilter ?? ''}
-          onChange={value => setGlobalFilter(String(value))}
-          placeholder='Rechercher un projet'
-          className='max-sm:is-full'
-        />
+      {/* Barre de filtrage améliorée */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        {/* Recherche rapide toujours visible */}
+        <Box sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <DebouncedInput
+            value={globalFilter ?? ''}
+            onChange={value => setGlobalFilter(String(value))}
+            placeholder='Rechercher dans tous les projets...'
+            sx={{ flex: 1, minWidth: 250 }}
+          />
+          <FormControl size='small' sx={{ minWidth: 140 }}>
+            <Select
+              displayEmpty
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              renderValue={(value) => value ? options?.statuts.find(s => s.value === value)?.label : 'Tous les statuts'}
+            >
+              <MenuItem value=''>Tous les statuts</MenuItem>
+              {options?.statuts.map(status => (
+                <MenuItem key={status.value} value={status.value}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <i 
+                      className={classnames('ri-circle-fill text-xs', {
+                        'text-info': status.value === 'nouveau',
+                        'text-primary': status.value === 'en_cours', 
+                        'text-success': status.value === 'termine',
+                        'text-error': status.value === 'annule',
+                        'text-warning': status.value === 'bloque'
+                      })} 
+                    />
+                    <Typography variant='body2'>{status.label}</Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size='small' sx={{ minWidth: 160 }}>
+            <Select
+              displayEmpty
+              value={etapeFilter}
+              onChange={(e) => setEtapeFilter(e.target.value)}
+              renderValue={(value) => value ? options?.etapes.find(e => e.value === value)?.label : 'Toutes les étapes'}
+            >
+              <MenuItem value=''>Toutes les étapes</MenuItem>
+              {options?.etapes.map(etape => (
+                <MenuItem key={etape.value} value={etape.value}>
+                  <Chip
+                    variant='tonal'
+                    color={etape.color as ThemeColor}
+                    label={etape.label}
+                    size='small'
+                  />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Filtres avancés dans des sections pliables */}
+        <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
+          <AccordionSummary 
+            expandIcon={<i className='ri-arrow-down-s-line' />}
+            sx={{ 
+              minHeight: 'auto', 
+              '&.Mui-expanded': { minHeight: 'auto' },
+              '& .MuiAccordionSummary-content': { margin: '8px 0' }
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className='ri-filter-3-line' />
+              <Typography variant='subtitle2'>Filtres avancés</Typography>
+              <Typography variant='caption' color='text.secondary'>
+                (Texte, Dates, Prix, Équipe)
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <Grid container spacing={3}>
+              {/* Section Informations générales */}
+              <Grid item xs={12} md={6}>
+                <Typography variant='subtitle2' sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                  <i className='ri-information-line' style={{ marginRight: 8 }} />
+                  Informations générales
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    size='small'
+                    label='Client'
+                    value={clientFilter}
+                    onChange={(e) => setClientFilter(e.target.value)}
+                    placeholder='Rechercher par nom de client'
+                  />
+                  <TextField
+                    size='small'
+                    label='Objet du projet'
+                    value={concerneFilter}
+                    onChange={(e) => setConcerneFilter(e.target.value)}
+                    placeholder='Rechercher dans les objets'
+                  />
+                  <TextField
+                    size='small'
+                    label='N° ORE'
+                    value={numeroOREFilter}
+                    onChange={(e) => setNumeroOREFilter(e.target.value)}
+                    placeholder='Ex: ORE-2024-001'
+                  />
+                </Box>
+              </Grid>
+
+              {/* Section Équipe */}
+              <Grid item xs={12} md={6}>
+                <Typography variant='subtitle2' sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                  <i className='ri-team-line' style={{ marginRight: 8 }} />
+                  Équipe projet
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControl size='small'>
+                    <Select
+                      displayEmpty
+                      value={vendeurFilter}
+                      onChange={(e) => setVendeurFilter(e.target.value)}
+                      renderValue={(value) => value ? options?.vendeurs.find(v => v.id === value)?.name : 'Tous les vendeurs'}
+                    >
+                      <MenuItem value=''>Tous les vendeurs</MenuItem>
+                      {options?.vendeurs.map(vendeur => (
+                        <MenuItem key={vendeur.id} value={vendeur.id}>
+                          {vendeur.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size='small'>
+                    <Select
+                      displayEmpty
+                      value={chiffreurFilter}
+                      onChange={(e) => setChiffreurFilter(e.target.value)}
+                      renderValue={(value) => value ? options?.chiffreurs.find(c => c.id === value)?.name : 'Tous les chiffreurs'}
+                    >
+                      <MenuItem value=''>Tous les chiffreurs</MenuItem>
+                      {options?.chiffreurs.map(chiffreur => (
+                        <MenuItem key={chiffreur.id} value={chiffreur.id}>
+                          {chiffreur.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size='small'>
+                    <Select
+                      displayEmpty
+                      value={chefProjetFilter}
+                      onChange={(e) => setChefProjetFilter(e.target.value)}
+                      renderValue={(value) => value ? options?.chefsDeProjet.find(c => c.id === value)?.name : 'Tous les chefs de projet'}
+                    >
+                      <MenuItem value=''>Tous les chefs de projet</MenuItem>
+                      {options?.chefsDeProjet.map(chef => (
+                        <MenuItem key={chef.id} value={chef.id}>
+                          {chef.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Grid>
+
+              {/* Section Dates */}
+              <Grid item xs={12} md={6}>
+                <Typography variant='subtitle2' sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                  <i className='ri-calendar-line' style={{ marginRight: 8 }} />
+                  Périodes
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Date demande dès'
+                      type='date'
+                      value={dateDemandeFrom}
+                      onChange={(e) => setDateDemandeFrom(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Date demande jusqu’à'
+                      type='date'
+                      value={dateDemandeTo}
+                      onChange={(e) => setDateDemandeTo(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Délai dès'
+                      type='date'
+                      value={delaiFrom}
+                      onChange={(e) => setDelaiFrom(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Délai jusqu’à'
+                      type='date'
+                      value={delaiTo}
+                      onChange={(e) => setDelaiTo(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Section Prix */}
+              <Grid item xs={12} md={6}>
+                <Typography variant='subtitle2' sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
+                  <i className='ri-money-dollar-circle-line' style={{ marginRight: 8 }} />
+                  Fourchettes financières
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Prix achat min'
+                      type='number'
+                      value={prixAchatMin}
+                      onChange={(e) => setPrixAchatMin(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>CHF</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Prix achat max'
+                      type='number'
+                      value={prixAchatMax}
+                      onChange={(e) => setPrixAchatMax(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>CHF</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Marge min'
+                      type='number'
+                      value={margeMin}
+                      onChange={(e) => setMargeMin(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>%</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Marge max'
+                      type='number'
+                      value={margeMax}
+                      onChange={(e) => setMargeMax(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>%</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Prix vente min'
+                      type='number'
+                      value={prixVenteMin}
+                      onChange={(e) => setPrixVenteMin(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>CHF</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size='small'
+                      label='Prix vente max'
+                      type='number'
+                      value={prixVenteMax}
+                      onChange={(e) => setPrixVenteMax(e.target.value)}
+                      InputProps={{ endAdornment: <Typography variant='caption'>CHF</Typography> }}
+                      fullWidth
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            {/* Actions */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+              <Typography variant='caption' color='text.secondary'>
+                {filteredData.length} projet{filteredData.length > 1 ? 's' : ''} trouvé{filteredData.length > 1 ? 's' : ''}
+              </Typography>
+              <Button 
+                variant='outlined' 
+                size='small'
+                startIcon={<i className='ri-close-line' />}
+                onClick={() => {
+                  setGlobalFilter('')
+                  setStatusFilter('')
+                  setEtapeFilter('')
+                  setClientFilter('')
+                  setConcerneFilter('')
+                  setNumeroOREFilter('')
+                  setVendeurFilter('')
+                  setChiffreurFilter('')
+                  setChefProjetFilter('')
+                  setDateDemandeFrom('')
+                  setDateDemandeTo('')
+                  setDelaiFrom('')
+                  setDelaiTo('')
+                  setPrixAchatMin('')
+                  setPrixAchatMax('')
+                  setMargeMin('')
+                  setMargeMax('')
+                  setPrixVenteMin('')
+                  setPrixVenteMax('')
+                }}
+              >
+                Réinitialiser tous les filtres
+              </Button>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      </Box>
+      <div className='p-5'>
         <div className='flex items-center max-sm:flex-col gap-4 max-sm:is-full is-auto'>
           <Button
             color='secondary'
