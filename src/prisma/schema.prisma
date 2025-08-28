@@ -1,0 +1,247 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  initials     String
+  color        String
+  phone        String?
+  roleId       String?
+  departmentId String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  role                 Role?       @relation(fields: [roleId], references: [id])
+  department           Department? @relation(fields: [departmentId], references: [id])
+  projectsAsVendeur    Project[]   @relation("VendeurProjects")
+  projectsAsChiffreur  Project[]   @relation("ChiffreurProjects")
+  projectsAsChefProjet Project[]   @relation("ChefProjetProjects")
+  timelineAssignments  Timeline[]
+  resourceAssignments  ResourceAssignment[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  numeroORE   String    @unique
+  client      String
+  concerne    String
+  vendeurId   String?
+  chiffreurId String?
+  chefProjetId String?
+  status      String @default("nouveau") // nouveau, en_cours, termine, annule, bloque
+  etape       String        @default("maquette")
+  dateDemande DateTime
+  delai       DateTime
+  imperatif   Boolean   @default(false)
+  importance  Int       @default(1) // 1, 2, ou 3
+  tags        String?   // Tags JSON array as string
+  
+  // Données de chiffrage
+  prixAchat   Float?    // Prix d'achat total
+  marge       Float?    // Marge en pourcentage
+  prixVente   Float?    // Prix de vente total
+  chiffrageData String?   // Données complètes du chiffrage (articles, formules, etc.) - JSON as string
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  vendeur             User? @relation("VendeurProjects", fields: [vendeurId], references: [id])
+  chiffreur           User? @relation("ChiffreurProjects", fields: [chiffreurId], references: [id])
+  chefProjet          User? @relation("ChefProjetProjects", fields: [chefProjetId], references: [id])
+  timeline            Timeline[]
+  resourceAssignments ResourceAssignment[]
+  positions           Position[]
+
+  @@map("projects")
+}
+
+model Timeline {
+  id           String    @id @default(cuid())
+  projectId    String
+  section      String    // prepress, impression, decoupe, atelier, atelierInf, pose
+  subsection   String?   // preparationFichiers, bat, numerique, serigraphie, confection, menuiserie
+  date         DateTime?
+  imperatif    Boolean   @default(false)
+  assignedToId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo User?   @relation(fields: [assignedToId], references: [id])
+
+  @@unique([projectId, section, subsection])
+  @@map("timeline")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String   @default("blue")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users     User[]
+  resources Resource[]
+
+  @@map("departments")
+}
+
+model Resource {
+  id               String       @id @default(cuid())
+  name             String
+  type             String // MACHINE_IMPRESSION, MACHINE_DECOUPE, VEHICULE, OUTIL, EQUIPEMENT
+  model            String?
+  serialNumber     String?
+  departmentId     String?
+  isActive         Boolean      @default(true)
+  description      String?
+  costPerHour      Float?       // Coût de revient horaire
+  sellingPricePerHour Float?    // Coût de vente horaire  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  department  Department? @relation(fields: [departmentId], references: [id])
+  assignments ResourceAssignment[]
+
+  @@map("resources")
+}
+
+model ResourceAssignment {
+  id         String    @id @default(cuid())
+  resourceId String
+  userId     String
+  projectId  String?
+  startDate  DateTime
+  endDate    DateTime?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("resource_assignments")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  level       Int      @default(1) // 1=Employé, 2=Chef de projet, 3=Manager, 4=Admin
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users User[]
+
+  @@map("roles")
+}
+
+// Enums convertis en commentaires pour SQLite
+// ProjectStatus: nouveau, en_cours, termine, annule, bloque
+// ProjectEtape: maquette, plans_techniques, chiffrage, validation_chiffrage, en_attente_retour_client, validation_client, gestion_de_projet, production, termine, annule
+// ResourceType: MACHINE_IMPRESSION, MACHINE_DECOUPE, VEHICULE, OUTIL, EQUIPEMENT
+
+// Modèles pour le système de chiffrage
+model Position {
+  id                          String   @id @default(cuid())
+  projectId                   String
+  numero                      String   // "01", "02", etc.
+  titre                       String   @default("")
+  titrePosition               String   @default("")
+  quantite                    Int      @default(1)
+  projectManagementPercentage Float    @default(10)
+  showImages                  Boolean  @default(false)
+  showDocuments               Boolean  @default(false)
+  showChiffrage               Boolean  @default(true)
+  showProduction              Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  // Relations
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lignes  QuoteLine[]
+  images  PositionImage[]
+  documents PositionDocument[]
+
+  @@map("positions")
+}
+
+model QuoteLine {
+  id                    String  @id @default(cuid())
+  positionId            String
+  descriptif            String  @default("")
+  infos                 String  @default("")
+  prixUnitAchatValue    Float   @default(0)
+  prixUnitAchatFormula  String? // Formule calculée
+  quantiteValue         Float   @default(0)
+  quantiteFormula       String? // Formule calculée
+  type                  String  @default("")
+  unite                 String  @default("")
+  totalAchat            Float   @default(0)
+  coeff                 Float   @default(1)
+  pVente                Float   @default(0)
+  pUnitaire             Float   @default(0)
+  marge                 Float   @default(0)
+  isProjectManagement   Boolean @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@map("quote_lines")
+}
+
+model PositionImage {
+  id         String   @id @default(cuid())
+  positionId String
+  url        String
+  name       String
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@map("position_images")
+}
+
+model PositionDocument {
+  id         String   @id @default(cuid())
+  positionId String
+  url        String
+  name       String
+  size       Int?
+  type       String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@map("position_documents")
+}
