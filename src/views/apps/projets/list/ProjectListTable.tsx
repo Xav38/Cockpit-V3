@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -18,6 +18,12 @@ import Switch from '@mui/material/Switch'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import FormControl from '@mui/material/FormControl'
+import Popper from '@mui/material/Popper'
+import MenuList from '@mui/material/MenuList'
+import ClickAwayListener from '@mui/material/ClickAwayListener'
+import Fade from '@mui/material/Fade'
+import Paper from '@mui/material/Paper'
+import Box from '@mui/material/Box'
 import type { TextFieldProps } from '@mui/material/TextField'
 
 // Third-party Imports
@@ -304,6 +310,279 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     )
   }
 
+  // Composants de sélection personnalisés avec MenuList Composition
+  const EtapeSelector = ({ project, etape, onUpdate }: { 
+    project: ProjectDataType, 
+    etape: string, 
+    onUpdate: (value: string) => void 
+  }) => {
+    const [open, setOpen] = useState(false)
+    const anchorRef = useRef<HTMLDivElement>(null)
+    const currentEtape = options?.etapes.find(e => e.value === etape)
+    const isUpdating = updating[`${project.id}-etape`]
+
+    const handleToggle = () => setOpen(!open)
+    
+    const handleClose = (event?: Event | React.SyntheticEvent) => {
+      if (anchorRef.current && anchorRef.current.contains(event?.target as HTMLElement)) {
+        return
+      }
+      setOpen(false)
+    }
+
+    const handleSelect = (value: string) => {
+      onUpdate(value)
+      setOpen(false)
+    }
+
+    return (
+      <>
+        <Box
+          ref={anchorRef}
+          onClick={handleToggle}
+          sx={{
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            opacity: isUpdating ? 0.5 : 1,
+            pointerEvents: isUpdating ? 'none' : 'auto'
+          }}
+        >
+          <Chip
+            variant='tonal'
+            color={getEtapeColor(etape)}
+            label={currentEtape?.label || etape}
+            size='small'
+          />
+        </Box>
+        <Popper
+          open={open}
+          anchorEl={anchorRef.current}
+          placement='bottom-start'
+          transition
+          disablePortal
+          sx={{ zIndex: 1300 }}
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps}>
+              <Paper sx={{ boxShadow: 2, minWidth: 180 }}>
+                <ClickAwayListener onClickAway={handleClose}>
+                  <MenuList autoFocusItem={open}>
+                    {options?.etapes.map((etape) => (
+                      <MenuItem
+                        key={etape.value}
+                        onClick={() => handleSelect(etape.value)}
+                        selected={etape.value === project.etape}
+                      >
+                        <Chip
+                          variant='tonal'
+                          color={etape.color as ThemeColor}
+                          label={etape.label}
+                          size='small'
+                        />
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </ClickAwayListener>
+              </Paper>
+            </Fade>
+          )}
+        </Popper>
+      </>
+    )
+  }
+
+  const StatusSelector = ({ project, status, onUpdate }: { 
+    project: ProjectDataType, 
+    status: string, 
+    onUpdate: (value: string) => void 
+  }) => {
+    const [open, setOpen] = useState(false)
+    const anchorRef = useRef<HTMLDivElement>(null)
+    const currentStatus = options?.statuts.find(s => s.value === status)
+    const isUpdating = updating[`${project.id}-status`]
+
+    const handleToggle = () => setOpen(!open)
+    
+    const handleClose = (event?: Event | React.SyntheticEvent) => {
+      if (anchorRef.current && anchorRef.current.contains(event?.target as HTMLElement)) {
+        return
+      }
+      setOpen(false)
+    }
+
+    const handleSelect = (value: string) => {
+      onUpdate(value)
+      setOpen(false)
+    }
+
+    return (
+      <>
+        <Box
+          ref={anchorRef}
+          onClick={handleToggle}
+          sx={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            opacity: isUpdating ? 0.5 : 1,
+            pointerEvents: isUpdating ? 'none' : 'auto',
+            p: 0.5,
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'action.hover' }
+          }}
+        >
+          <i 
+            className={classnames('ri-circle-fill text-xs', {
+              'text-info': status === 'nouveau',
+              'text-primary': status === 'en_cours', 
+              'text-success': status === 'termine',
+              'text-error': status === 'annule',
+              'text-warning': status === 'bloque'
+            })} 
+          />
+          <Typography variant='body2' className='capitalize'>
+            {currentStatus?.label || status.replace('_', ' ')}
+          </Typography>
+        </Box>
+        <Popper
+          open={open}
+          anchorEl={anchorRef.current}
+          placement='bottom-start'
+          transition
+          disablePortal
+          sx={{ zIndex: 1300 }}
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps}>
+              <Paper sx={{ boxShadow: 2, minWidth: 140 }}>
+                <ClickAwayListener onClickAway={handleClose}>
+                  <MenuList autoFocusItem={open}>
+                    {options?.statuts.map((statut) => (
+                      <MenuItem
+                        key={statut.value}
+                        onClick={() => handleSelect(statut.value)}
+                        selected={statut.value === project.status}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                          <i 
+                            className={classnames('ri-circle-fill text-xs', {
+                              'text-info': statut.value === 'nouveau',
+                              'text-primary': statut.value === 'en_cours', 
+                              'text-success': statut.value === 'termine',
+                              'text-error': statut.value === 'annule',
+                              'text-warning': statut.value === 'bloque'
+                            })} 
+                          />
+                          <Typography variant='body2'>
+                            {statut.label}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </ClickAwayListener>
+              </Paper>
+            </Fade>
+          )}
+        </Popper>
+      </>
+    )
+  }
+
+  const UserSelector = ({ project, user, fieldName, userOptions, onUpdate }: {
+    project: ProjectDataType,
+    user: UserType | null,
+    fieldName: string,
+    userOptions: UserType[],
+    onUpdate: (value: string | null) => void
+  }) => {
+    const [open, setOpen] = useState(false)
+    const anchorRef = useRef<HTMLDivElement>(null)
+    const isUpdating = updating[`${project.id}-${fieldName}`]
+
+    const handleToggle = () => setOpen(!open)
+    
+    const handleClose = (event?: Event | React.SyntheticEvent) => {
+      if (anchorRef.current && anchorRef.current.contains(event?.target as HTMLElement)) {
+        return
+      }
+      setOpen(false)
+    }
+
+    const handleSelect = (userId: string | null) => {
+      onUpdate(userId)
+      setOpen(false)
+    }
+
+    return (
+      <>
+        <Box
+          ref={anchorRef}
+          onClick={handleToggle}
+          sx={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            opacity: isUpdating ? 0.5 : 1,
+            pointerEvents: isUpdating ? 'none' : 'auto',
+            p: 0.5,
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'action.hover' }
+          }}
+        >
+          {getUserAvatar(user)}
+          <Typography variant='body2'>
+            {user?.name || 'Non assigné'}
+          </Typography>
+        </Box>
+        <Popper
+          open={open}
+          anchorEl={anchorRef.current}
+          placement='bottom-start'
+          transition
+          disablePortal
+          sx={{ zIndex: 1300 }}
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps}>
+              <Paper sx={{ boxShadow: 2, minWidth: 200 }}>
+                <ClickAwayListener onClickAway={handleClose}>
+                  <MenuList autoFocusItem={open}>
+                    <MenuItem
+                      onClick={() => handleSelect(null)}
+                      selected={!user}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {getUserAvatar(null)}
+                        <Typography>Non assigné</Typography>
+                      </Box>
+                    </MenuItem>
+                    <Divider />
+                    {userOptions.map((option) => (
+                      <MenuItem
+                        key={option.id}
+                        onClick={() => handleSelect(option.id)}
+                        selected={option.id === user?.id}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {getUserAvatar(option)}
+                          <Typography>{option.name}</Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </ClickAwayListener>
+              </Paper>
+            </Fade>
+          )}
+        </Popper>
+      </>
+    )
+  }
+
   const columns = useMemo<ColumnDef<ProjectDataType, any>[]>(
     () => [
       columnHelper.accessor('numeroORE', {
@@ -363,250 +642,59 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       }),
       columnHelper.accessor('etape', {
         header: 'Étape',
-        cell: ({ row }) => {
-          const isUpdating = updating[`${row.original.id}-etape`]
-          const currentEtape = options?.etapes.find(e => e.value === row.original.etape)
-          
-          return (
-            <FormControl size='small' sx={{ minWidth: 180 }}>
-              <Select
-                value={row.original.etape}
-                onChange={(e) => handleFieldUpdate(row.original.id, 'etape', e.target.value)}
-                disabled={isUpdating || !options}
-                displayEmpty
-                renderValue={(value) => (
-                  <Chip
-                    label={currentEtape?.label || value.replace(/_/g, ' ')}
-                    color={getEtapeColor(value) as any}
-                    variant='tonal'
-                    size='small'
-                  />
-                )}
-                sx={{
-                  '& .MuiSelect-select': { 
-                    padding: '4px 8px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }
-                }}
-              >
-                {options?.etapes.map(etape => (
-                  <MenuItem key={etape.value} value={etape.value}>
-                    <Chip
-                      label={etape.label}
-                      color={etape.color as any}
-                      variant='tonal'
-                      size='small'
-                      sx={{ width: '100%' }}
-                    />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )
-        }
+        cell: ({ row }) => (
+          <EtapeSelector
+            project={row.original}
+            etape={row.original.etape}
+            onUpdate={(value) => handleFieldUpdate(row.original.id, 'etape', value)}
+          />
+        )
       }),
       columnHelper.accessor('status', {
         header: 'Statut',
-        cell: ({ row }) => {
-          const isUpdating = updating[`${row.original.id}-status`]
-          const currentStatus = options?.statuts.find(s => s.value === row.original.status)
-          
-          return (
-            <FormControl size='small' sx={{ minWidth: 140 }}>
-              <Select
-                value={row.original.status}
-                onChange={(e) => handleFieldUpdate(row.original.id, 'status', e.target.value)}
-                disabled={isUpdating || !options}
-                displayEmpty
-                renderValue={(value) => (
-                  <div className='flex items-center gap-2'>
-                    <i 
-                      className={classnames('ri-circle-fill text-xs', {
-                        'text-info': value === 'nouveau',
-                        'text-primary': value === 'en_cours', 
-                        'text-success': value === 'termine',
-                        'text-error': value === 'annule',
-                        'text-warning': value === 'bloque'
-                      })} 
-                    />
-                    <Typography variant='body2' className='capitalize'>
-                      {currentStatus?.label || value.replace('_', ' ')}
-                    </Typography>
-                  </div>
-                )}
-                sx={{
-                  '& .MuiSelect-select': { 
-                    padding: '6px 8px'
-                  }
-                }}
-              >
-                {options?.statuts.map(status => (
-                  <MenuItem key={status.value} value={status.value}>
-                    <div className='flex items-center gap-2 w-full'>
-                      <i 
-                        className={classnames('ri-circle-fill text-xs', {
-                          'text-info': status.value === 'nouveau',
-                          'text-primary': status.value === 'en_cours', 
-                          'text-success': status.value === 'termine',
-                          'text-error': status.value === 'annule',
-                          'text-warning': status.value === 'bloque'
-                        })} 
-                      />
-                      <Typography variant='body2'>
-                        {status.label}
-                      </Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )
-        }
+        cell: ({ row }) => (
+          <StatusSelector
+            project={row.original}
+            status={row.original.status}
+            onUpdate={(value) => handleFieldUpdate(row.original.id, 'status', value)}
+          />
+        )
       }),
       columnHelper.accessor('vendeur', {
         header: 'Vendeur',
-        cell: ({ row }) => {
-          const isUpdating = updating[`${row.original.id}-vendeurId`]
-          
-          return (
-            <FormControl size='small' sx={{ minWidth: 200 }}>
-              <Select
-                value={row.original.vendeur?.id || ''}
-                onChange={(e) => handleFieldUpdate(row.original.id, 'vendeurId', e.target.value || null)}
-                disabled={isUpdating || !options}
-                displayEmpty
-                renderValue={(value) => {
-                  const user = value ? options?.vendeurs.find(v => v.id === value) : null
-                  return (
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(user || row.original.vendeur)}
-                      <Typography variant='body2'>
-                        {user?.name || row.original.vendeur?.name || 'Non assigné'}
-                      </Typography>
-                    </div>
-                  )
-                }}
-                sx={{
-                  '& .MuiSelect-select': { 
-                    padding: '6px 8px'
-                  }
-                }}
-              >
-                <MenuItem value=''>
-                  <div className='flex items-center gap-2'>
-                    {getUserAvatar(null)}
-                    <Typography variant='body2'>Non assigné</Typography>
-                  </div>
-                </MenuItem>
-                {options?.vendeurs.map(vendeur => (
-                  <MenuItem key={vendeur.id} value={vendeur.id}>
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(vendeur)}
-                      <Typography variant='body2'>{vendeur.name}</Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )
-        }
+        cell: ({ row }) => (
+          <UserSelector
+            project={row.original}
+            user={row.original.vendeur}
+            fieldName='vendeurId'
+            userOptions={options?.vendeurs || []}
+            onUpdate={(value) => handleFieldUpdate(row.original.id, 'vendeurId', value)}
+          />
+        )
       }),
       columnHelper.accessor('chiffreur', {
         header: 'Chiffreur',
-        cell: ({ row }) => {
-          const isUpdating = updating[`${row.original.id}-chiffreurId`]
-          
-          return (
-            <FormControl size='small' sx={{ minWidth: 200 }}>
-              <Select
-                value={row.original.chiffreur?.id || ''}
-                onChange={(e) => handleFieldUpdate(row.original.id, 'chiffreurId', e.target.value || null)}
-                disabled={isUpdating || !options}
-                displayEmpty
-                renderValue={(value) => {
-                  const user = value ? options?.chiffreurs.find(c => c.id === value) : null
-                  return (
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(user || row.original.chiffreur)}
-                      <Typography variant='body2'>
-                        {user?.name || row.original.chiffreur?.name || 'Non assigné'}
-                      </Typography>
-                    </div>
-                  )
-                }}
-                sx={{
-                  '& .MuiSelect-select': { 
-                    padding: '6px 8px'
-                  }
-                }}
-              >
-                <MenuItem value=''>
-                  <div className='flex items-center gap-2'>
-                    {getUserAvatar(null)}
-                    <Typography variant='body2'>Non assigné</Typography>
-                  </div>
-                </MenuItem>
-                {options?.chiffreurs.map(chiffreur => (
-                  <MenuItem key={chiffreur.id} value={chiffreur.id}>
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(chiffreur)}
-                      <Typography variant='body2'>{chiffreur.name}</Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )
-        }
+        cell: ({ row }) => (
+          <UserSelector
+            project={row.original}
+            user={row.original.chiffreur}
+            fieldName='chiffreurId'
+            userOptions={options?.chiffreurs || []}
+            onUpdate={(value) => handleFieldUpdate(row.original.id, 'chiffreurId', value)}
+          />
+        )
       }),
       columnHelper.accessor('chefDeProjet', {
         header: 'Chef de projet',
-        cell: ({ row }) => {
-          const isUpdating = updating[`${row.original.id}-chefProjetId`]
-          
-          return (
-            <FormControl size='small' sx={{ minWidth: 200 }}>
-              <Select
-                value={row.original.chefDeProjet?.id || ''}
-                onChange={(e) => handleFieldUpdate(row.original.id, 'chefProjetId', e.target.value || null)}
-                disabled={isUpdating || !options}
-                displayEmpty
-                renderValue={(value) => {
-                  const user = value ? options?.chefsDeProjet.find(c => c.id === value) : null
-                  return (
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(user || row.original.chefDeProjet)}
-                      <Typography variant='body2'>
-                        {user?.name || row.original.chefDeProjet?.name || 'Non assigné'}
-                      </Typography>
-                    </div>
-                  )
-                }}
-                sx={{
-                  '& .MuiSelect-select': { 
-                    padding: '6px 8px'
-                  }
-                }}
-              >
-                <MenuItem value=''>
-                  <div className='flex items-center gap-2'>
-                    {getUserAvatar(null)}
-                    <Typography variant='body2'>Non assigné</Typography>
-                  </div>
-                </MenuItem>
-                {options?.chefsDeProjet.map(chef => (
-                  <MenuItem key={chef.id} value={chef.id}>
-                    <div className='flex items-center gap-2'>
-                      {getUserAvatar(chef)}
-                      <Typography variant='body2'>{chef.name}</Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )
-        }
+        cell: ({ row }) => (
+          <UserSelector
+            project={row.original}
+            user={row.original.chefDeProjet}
+            fieldName='chefProjetId'
+            userOptions={options?.chefsDeProjet || []}
+            onUpdate={(value) => handleFieldUpdate(row.original.id, 'chefProjetId', value)}
+          />
+        )
       }),
       columnHelper.accessor('prixAchat', {
         header: 'Prix d\'achat',
