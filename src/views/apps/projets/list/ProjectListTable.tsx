@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -199,6 +199,26 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [importanceFilter, setImportanceFilter] = useState('')
   const [tagsFilter, setTagsFilter] = useState<string[]>([])
 
+  // États pour le regroupement
+  const [groupBy1, setGroupBy1] = useState('')
+  const [groupBy2, setGroupBy2] = useState('')
+  const [groupBy3, setGroupBy3] = useState('')
+
+  // Options de regroupement basées sur toutes les colonnes
+  const groupingOptions = [
+    { value: '', label: 'Aucun regroupement' },
+    { value: 'status', label: 'Statut' },
+    { value: 'etape', label: 'Étape' },
+    { value: 'client', label: 'Client' },
+    { value: 'vendeur', label: 'Vendeur' },
+    { value: 'chiffreur', label: 'Chiffreur' },
+    { value: 'chefDeProjet', label: 'Chef de Projet' },
+    { value: 'imperatif', label: 'Impératif' },
+    { value: 'importance', label: 'Chances de gains' },
+    { value: 'dateMonth', label: 'Mois de demande' },
+    { value: 'delaiMonth', label: 'Mois de délai' }
+  ]
+
   useEffect(() => {
     fetchOptions()
   }, [])
@@ -356,6 +376,130 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     prixAchatMin, prixAchatMax, margeMin, margeMax, prixVenteMin, prixVenteMax,
     imperatifFilter, importanceFilter, tagsFilter
   ])
+
+  const getGroupValue = (project: ProjectDataType, groupBy: string): string => {
+    switch (groupBy) {
+      case 'status':
+        return project.status || 'Sans statut'
+      case 'etape':
+        return project.etape || 'Sans étape'
+      case 'client':
+        return project.client || 'Sans client'
+      case 'vendeur':
+        return project.vendeur?.name || 'Sans vendeur'
+      case 'chiffreur':
+        return project.chiffreur?.name || 'Sans chiffreur'
+      case 'chefDeProjet':
+        return project.chefDeProjet?.name || 'Sans chef de projet'
+      case 'imperatif':
+        return project.imperatif ? 'Impératif' : 'Flexible'
+      case 'importance':
+        return `${project.importance} étoile${project.importance > 1 ? 's' : ''}`
+      case 'dateMonth':
+        try {
+          const date = new Date(project.dateDemande)
+          return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })
+        } catch {
+          return 'Date invalide'
+        }
+      case 'delaiMonth':
+        try {
+          const date = new Date(project.delai)
+          return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })
+        } catch {
+          return 'Date invalide'
+        }
+      default:
+        return 'Autre'
+    }
+  }
+
+  // Fonction pour regrouper les données
+  const groupedData = useMemo(() => {
+    if (!groupBy1 && !groupBy2 && !groupBy3) {
+      return { flatData: filteredData, groupedData: null }
+    }
+
+    const groups = new Map<string, any>()
+    
+    filteredData.forEach(project => {
+      const key1 = groupBy1 ? getGroupValue(project, groupBy1) : 'root'
+      const key2 = groupBy2 ? getGroupValue(project, groupBy2) : 'root'
+      const key3 = groupBy3 ? getGroupValue(project, groupBy3) : 'root'
+      
+      const fullKey = `${key1}|${key2}|${key3}`
+      
+      if (!groups.has(fullKey)) {
+        groups.set(fullKey, {
+          key1,
+          key2,
+          key3,
+          projects: [],
+          count: 0
+        })
+      }
+      
+      groups.get(fullKey)!.projects.push(project)
+      groups.get(fullKey)!.count++
+    })
+
+    // Organiser les groupes en structure hiérarchique
+    const organizedGroups = new Map()
+    
+    groups.forEach((group, fullKey) => {
+      const { key1, key2, key3, projects, count } = group
+      
+      if (!organizedGroups.has(key1)) {
+        organizedGroups.set(key1, {
+          label: key1,
+          level: 1,
+          children: new Map(),
+          projects: [],
+          count: 0
+        })
+      }
+      
+      const level1 = organizedGroups.get(key1)
+      level1.count += count
+      
+      if (groupBy2) {
+        if (!level1.children.has(key2)) {
+          level1.children.set(key2, {
+            label: key2,
+            level: 2,
+            children: new Map(),
+            projects: [],
+            count: 0
+          })
+        }
+        
+        const level2 = level1.children.get(key2)
+        level2.count += count
+        
+        if (groupBy3) {
+          if (!level2.children.has(key3)) {
+            level2.children.set(key3, {
+              label: key3,
+              level: 3,
+              children: new Map(),
+              projects: [],
+              count: 0
+            })
+          }
+          
+          const level3 = level2.children.get(key3)
+          level3.projects = projects
+          level3.count = count
+        } else {
+          level2.projects = projects
+        }
+      } else {
+        level1.projects = projects
+      }
+    })
+
+    return { flatData: filteredData, groupedData: organizedGroups }
+  }, [filteredData, groupBy1, groupBy2, groupBy3])
 
   const formatDate = (dateString: string) => {
     try {
@@ -979,7 +1123,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   )
 
   const table = useReactTable({
-    data: filteredData,
+    data: groupedData.flatData,
     columns,
     filterFns: {
       fuzzy: fuzzyFilter
@@ -1538,6 +1682,120 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
             </Box>
           </AccordionDetails>
         </Accordion>
+
+        {/* Section Regroupement */}
+        <Accordion sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+          <AccordionSummary expandIcon={<i className='ri-arrow-down-s-line' />}>
+            <Typography variant='h6' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className='ri-group-line text-primary' />
+              Regroupement des données
+              {(groupBy1 || groupBy2 || groupBy3) && (
+                <Chip
+                  label={`${[groupBy1, groupBy2, groupBy3].filter(Boolean).length} niveau${[groupBy1, groupBy2, groupBy3].filter(Boolean).length > 1 ? 'x' : ''}`}
+                  size='small'
+                  color='primary'
+                  variant='outlined'
+                />
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+                  Organisez vos données en groupes hiérarchiques jusqu'à 3 niveaux
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <Typography variant='caption' display='block' sx={{ mb: 1 }}>Regrouper par</Typography>
+                <FormControl size='small' fullWidth>
+                  <Select
+                    displayEmpty
+                    value={groupBy1}
+                    onChange={(e) => setGroupBy1(e.target.value)}
+                    renderValue={(value) => {
+                      if (value === '') return 'Aucun regroupement'
+                      return groupingOptions.find(opt => opt.value === value)?.label || value
+                    }}
+                  >
+                    {groupingOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Typography variant='caption' display='block' sx={{ mb: 1 }}>Puis par</Typography>
+                <FormControl size='small' fullWidth>
+                  <Select
+                    displayEmpty
+                    value={groupBy2}
+                    onChange={(e) => setGroupBy2(e.target.value)}
+                    disabled={!groupBy1}
+                    renderValue={(value) => {
+                      if (value === '') return 'Aucun sous-regroupement'
+                      return groupingOptions.find(opt => opt.value === value)?.label || value
+                    }}
+                  >
+                    {groupingOptions
+                      .filter(opt => opt.value !== groupBy1) // Éviter la duplication
+                      .map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Typography variant='caption' display='block' sx={{ mb: 1 }}>Puis par</Typography>
+                <FormControl size='small' fullWidth>
+                  <Select
+                    displayEmpty
+                    value={groupBy3}
+                    onChange={(e) => setGroupBy3(e.target.value)}
+                    disabled={!groupBy2}
+                    renderValue={(value) => {
+                      if (value === '') return 'Aucun sous-regroupement'
+                      return groupingOptions.find(opt => opt.value === value)?.label || value
+                    }}
+                  >
+                    {groupingOptions
+                      .filter(opt => opt.value !== groupBy1 && opt.value !== groupBy2) // Éviter la duplication
+                      .map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Actions de regroupement */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 1 }}>
+                  <Button
+                    variant='outlined'
+                    size='small'
+                    onClick={() => {
+                      setGroupBy1('')
+                      setGroupBy2('')
+                      setGroupBy3('')
+                    }}
+                    disabled={!groupBy1 && !groupBy2 && !groupBy3}
+                  >
+                    Réinitialiser le regroupement
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
       </Box>
       <div className='p-5'>
         <div className='flex items-center max-sm:flex-col gap-4 max-sm:is-full is-auto'>
@@ -1587,13 +1845,95 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
               </tr>
             ))}
           </thead>
-          {table.getFilteredRowModel().rows.length === 0 ? (
+          {groupedData.flatData.length === 0 ? (
             <tbody>
               <tr>
                 <td colSpan={table.getVisibleFlatColumns().length} className='text-center'>
                   Aucun projet trouvé
                 </td>
               </tr>
+            </tbody>
+          ) : groupedData.groupedData ? (
+            <tbody>
+              {Array.from(groupedData.groupedData.entries()).map(([key1, group1]) => (
+                <React.Fragment key={key1}>
+                  {/* Niveau 1 */}
+                  <tr className='bg-actionHover'>
+                    <td colSpan={table.getVisibleFlatColumns().length} className='px-4 py-2'>
+                      <Typography variant='subtitle1' sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className='ri-folder-line text-primary' />
+                        {group1.label} ({group1.count} projet{group1.count > 1 ? 's' : ''})
+                      </Typography>
+                    </td>
+                  </tr>
+                  
+                  {/* Niveau 2 */}
+                  {group1.children && Array.from(group1.children.entries()).map(([key2, group2]) => (
+                    <React.Fragment key={`${key1}-${key2}`}>
+                      <tr className='bg-action/50'>
+                        <td colSpan={table.getVisibleFlatColumns().length} className='px-8 py-1'>
+                          <Typography variant='subtitle2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <i className='ri-folder-2-line text-secondary' />
+                            {group2.label} ({group2.count} projet{group2.count > 1 ? 's' : ''})
+                          </Typography>
+                        </td>
+                      </tr>
+                      
+                      {/* Niveau 3 */}
+                      {group2.children && Array.from(group2.children.entries()).map(([key3, group3]) => (
+                        <React.Fragment key={`${key1}-${key2}-${key3}`}>
+                          <tr className='bg-action/25'>
+                            <td colSpan={table.getVisibleFlatColumns().length} className='px-12 py-1'>
+                              <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <i className='ri-file-list-line text-textSecondary' />
+                                {group3.label} ({group3.count} projet{group3.count > 1 ? 's' : ''})
+                              </Typography>
+                            </td>
+                          </tr>
+                          {/* Projets du niveau 3 */}
+                          {group3.projects.map(project => {
+                            const tableRow = table.getRowModel().rows.find(row => row.original.id === project.id)
+                            if (!tableRow) return null
+                            return (
+                              <tr key={project.id} className={classnames({ selected: tableRow.getIsSelected() }, 'pl-16')}>
+                                {tableRow.getVisibleCells().map(cell => (
+                                  <td key={cell.id} className='pl-16'>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                                ))}
+                              </tr>
+                            )
+                          })}
+                        </React.Fragment>
+                      ))}
+                      
+                      {/* Projets du niveau 2 (si pas de niveau 3) */}
+                      {!group2.children.size && group2.projects.map(project => {
+                        const tableRow = table.getRowModel().rows.find(row => row.original.id === project.id)
+                        if (!tableRow) return null
+                        return (
+                          <tr key={project.id} className={classnames({ selected: tableRow.getIsSelected() })}>
+                            {tableRow.getVisibleCells().map(cell => (
+                              <td key={cell.id} className='pl-12'>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                            ))}
+                          </tr>
+                        )
+                      })}
+                    </React.Fragment>
+                  ))}
+                  
+                  {/* Projets du niveau 1 (si pas de niveau 2) */}
+                  {!group1.children.size && group1.projects.map(project => {
+                    const tableRow = table.getRowModel().rows.find(row => row.original.id === project.id)
+                    if (!tableRow) return null
+                    return (
+                      <tr key={project.id} className={classnames({ selected: tableRow.getIsSelected() })}>
+                        {tableRow.getVisibleCells().map(cell => (
+                          <td key={cell.id} className='pl-8'>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                        ))}
+                      </tr>
+                    )
+                  })}
+                </React.Fragment>
+              ))}
             </tbody>
           ) : (
             <tbody>
