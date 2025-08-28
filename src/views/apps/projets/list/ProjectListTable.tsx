@@ -149,11 +149,18 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   }
 
   const formatPrice = (price: number | null) => {
-    if (!price) return '€0,00'
-    return new Intl.NumberFormat('fr-FR', {
+    if (!price) return 'CHF 0'
+    return new Intl.NumberFormat('fr-CH', {
       style: 'currency',
-      currency: 'EUR'
-    }).format(price)
+      currency: 'CHF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(Math.round(price))
+  }
+
+  const formatMarge = (marge: number | null) => {
+    if (!marge) return '-'
+    return `${marge.toFixed(1)}%`
   }
 
   const handleImperatifChange = async (projectId: string, newValue: boolean) => {
@@ -312,7 +319,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         header: 'Marge',
         cell: ({ row }) => (
           <Typography color='text.primary'>
-            {row.original.marge ? `${row.original.marge}%` : '-'}
+            {formatMarge(row.original.marge)}
           </Typography>
         )
       }),
@@ -373,7 +380,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         enableSorting: false
       }
     ],
-    [data, loading, handleImperatifChange]
+    [data, loading, handleImperatifChange, formatPrice, formatMarge]
   )
 
   const table = useReactTable({

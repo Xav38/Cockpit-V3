@@ -93,9 +93,9 @@ async function main() {
       vendeurId: vendeur1.id,
       chiffreurId: chiffreur1.id,
       chefProjetId: chef1.id,
-      prixAchat: 1625.00,
-      prixVente: 2500.00,
-      marge: 35,
+      prixAchat: 1625.50,
+      prixVente: 2500.75,
+      marge: 35.3,
       importance: 2,
       tags: JSON.stringify(['Signalétique', 'Bureau'])
     }
@@ -135,9 +135,9 @@ async function main() {
       vendeurId: vendeur1.id,
       chiffreurId: chiffreur2.id,
       chefProjetId: chef1.id,
-      prixAchat: 2610.00,
-      prixVente: 4500.00,
-      marge: 42,
+      prixAchat: 2610.25,
+      prixVente: 4500.90,
+      marge: 42.7,
       importance: 3,
       tags: JSON.stringify(['Véhicule', 'Habillage', 'Flocage'])
     }
@@ -156,9 +156,9 @@ async function main() {
       vendeurId: vendeur2.id,
       chiffreurId: chiffreur1.id,
       chefProjetId: chef1.id,
-      prixAchat: 3200.00,
-      prixVente: 5000.00,
-      marge: 36,
+      prixAchat: 3200.80,
+      prixVente: 5000.15,
+      marge: 36.4,
       importance: 3,
       tags: JSON.stringify(['Stand', 'Salon', 'Mobilier'])
     }
@@ -177,9 +177,9 @@ async function main() {
       vendeurId: vendeur1.id,
       chiffreurId: chiffreur2.id,
       chefProjetId: null,
-      prixAchat: 850.00,
-      prixVente: 1200.00,
-      marge: 29,
+      prixAchat: 850.75,
+      prixVente: 1200.50,
+      marge: 29.6,
       importance: 2,
       tags: JSON.stringify(['Menu', 'Impression', 'Restaurant'])
     }
@@ -205,9 +205,9 @@ async function main() {
         vendeurId: Math.random() > 0.5 ? vendeur1.id : vendeur2.id,
         chiffreurId: Math.random() > 0.5 ? chiffreur1.id : chiffreur2.id,
         chefProjetId: Math.random() > 0.3 ? chef1.id : null,
-        prixAchat: Math.floor(Math.random() * 5000) + 500,
+        prixAchat: Math.round((Math.random() * 5000 + 500) * 100) / 100,
         prixVente: null,
-        marge: Math.floor(Math.random() * 50) + 10,
+        marge: Math.round((Math.random() * 50 + 10) * 10) / 10,
         importance: Math.floor(Math.random() * 3) + 1,
         tags: JSON.stringify(['Tag1', 'Tag2'].slice(0, Math.floor(Math.random() * 2) + 1))
       }
