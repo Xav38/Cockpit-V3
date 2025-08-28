@@ -30,21 +30,27 @@ export async function PATCH(
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         },
         chiffreur: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         },
         chefProjet: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         }
       }

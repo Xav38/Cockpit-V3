@@ -9,21 +9,27 @@ export async function GET() {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         },
         chiffreur: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         },
         chefProjet: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            initials: true,
+            color: true
           }
         }
       },

@@ -37,6 +37,10 @@ import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
 // Component Imports
 import OptionMenu from '@core/components/option-menu'
+import CustomAvatar from '@core/components/mui/Avatar'
+
+// Util Imports
+import { getInitials } from '@/utils/getInitials'
 
 // Type Imports
 import type { ThemeColor } from '@core/types'
@@ -62,9 +66,9 @@ type ProjectDataType = {
   delai: string
   etape: string
   status: string
-  vendeur: { name: string } | null
-  chiffreur: { name: string } | null
-  chefDeProjet: { name: string } | null
+  vendeur: { name: string; initials: string; color: string } | null
+  chiffreur: { name: string; initials: string; color: string } | null
+  chefDeProjet: { name: string; initials: string; color: string } | null
   prixAchat: number | null
   marge: number | null
   prixVente: number | null
@@ -196,6 +200,32 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     }
   }
 
+  const getUserAvatar = (user: { name: string; initials?: string; color?: string } | null) => {
+    if (!user) {
+      return (
+        <CustomAvatar skin='light' size={32}>
+          ?
+        </CustomAvatar>
+      )
+    }
+
+    const initials = user.initials || getInitials(user.name)
+    
+    return (
+      <CustomAvatar 
+        skin='filled' 
+        size={32}
+        sx={{
+          backgroundColor: user.color || undefined,
+          fontSize: '0.875rem',
+          fontWeight: 600
+        }}
+      >
+        {initials}
+      </CustomAvatar>
+    )
+  }
+
   const columns = useMemo<ColumnDef<ProjectDataType, any>[]>(
     () => [
       columnHelper.accessor('numeroORE', {
@@ -286,25 +316,34 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       columnHelper.accessor('vendeur', {
         header: 'Vendeur',
         cell: ({ row }) => (
-          <Typography color='text.primary'>
-            {row.original.vendeur?.name || 'Non assigné'}
-          </Typography>
+          <div className='flex items-center gap-3'>
+            {getUserAvatar(row.original.vendeur)}
+            <Typography color='text.primary'>
+              {row.original.vendeur?.name || 'Non assigné'}
+            </Typography>
+          </div>
         )
       }),
       columnHelper.accessor('chiffreur', {
         header: 'Chiffreur',
         cell: ({ row }) => (
-          <Typography color='text.primary'>
-            {row.original.chiffreur?.name || 'Non assigné'}
-          </Typography>
+          <div className='flex items-center gap-3'>
+            {getUserAvatar(row.original.chiffreur)}
+            <Typography color='text.primary'>
+              {row.original.chiffreur?.name || 'Non assigné'}
+            </Typography>
+          </div>
         )
       }),
       columnHelper.accessor('chefDeProjet', {
         header: 'Chef de projet',
         cell: ({ row }) => (
-          <Typography color='text.primary'>
-            {row.original.chefDeProjet?.name || 'Non assigné'}
-          </Typography>
+          <div className='flex items-center gap-3'>
+            {getUserAvatar(row.original.chefDeProjet)}
+            <Typography color='text.primary'>
+              {row.original.chefDeProjet?.name || 'Non assigné'}
+            </Typography>
+          </div>
         )
       }),
       columnHelper.accessor('prixAchat', {
@@ -380,7 +419,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         enableSorting: false
       }
     ],
-    [data, loading, handleImperatifChange, formatPrice, formatMarge]
+    [data, loading, handleImperatifChange, formatPrice, formatMarge, getUserAvatar]
   )
 
   const table = useReactTable({
