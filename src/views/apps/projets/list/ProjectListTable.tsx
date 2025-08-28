@@ -15,6 +15,9 @@ import TablePagination from '@mui/material/TablePagination'
 import Divider from '@mui/material/Divider'
 import Button from '@mui/material/Button'
 import Switch from '@mui/material/Switch'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
+import FormControl from '@mui/material/FormControl'
 import type { TextFieldProps } from '@mui/material/TextField'
 
 // Third-party Imports
@@ -57,6 +60,13 @@ declare module '@tanstack/table-core' {
   }
 }
 
+type UserType = {
+  id: string
+  name: string
+  initials: string
+  color: string
+}
+
 type ProjectDataType = {
   id: string
   numeroORE: string
@@ -66,15 +76,23 @@ type ProjectDataType = {
   delai: string
   etape: string
   status: string
-  vendeur: { name: string; initials: string; color: string } | null
-  chiffreur: { name: string; initials: string; color: string } | null
-  chefDeProjet: { name: string; initials: string; color: string } | null
+  vendeur: UserType | null
+  chiffreur: UserType | null
+  chefDeProjet: UserType | null
   prixAchat: number | null
   marge: number | null
   prixVente: number | null
   importance: number
   tags: string[]
   imperatif: boolean
+}
+
+type OptionsType = {
+  vendeurs: UserType[]
+  chiffreurs: UserType[]
+  chefsDeProjet: UserType[]
+  statuts: { value: string; label: string; color: string }[]
+  etapes: { value: string; label: string; color: string }[]
 }
 
 const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
@@ -143,6 +161,24 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [data, setData] = useState<ProjectDataType[]>(projectData)
   const [globalFilter, setGlobalFilter] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
+  const [options, setOptions] = useState<OptionsType | null>(null)
+  const [updating, setUpdating] = useState<{ [key: string]: boolean }>({})
+
+  useEffect(() => {
+    fetchOptions()
+  }, [])
+
+  const fetchOptions = async () => {
+    try {
+      const response = await fetch('/api/options')
+      if (response.ok) {
+        const data = await response.json()
+        setOptions(data)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des options:', error)
+    }
+  }
 
   const formatDate = (dateString: string) => {
     try {
@@ -194,9 +230,46 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       )
     } catch (error) {
       console.error('Erreur:', error)
-      // Vous pourriez ajouter une notification d'erreur ici
     } finally {
       setLoading(null)
+    }
+  }
+
+  const handleFieldUpdate = async (projectId: string, field: string, value: any) => {
+    const key = `${projectId}-${field}`
+    setUpdating(prev => ({ ...prev, [key]: true }))
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ [field]: value })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+      
+      const updatedProject = await response.json()
+      
+      // Mettre à jour les données locales
+      setData(prevData => 
+        prevData.map(project => 
+          project.id === projectId 
+            ? { ...project, ...updatedProject }
+            : project
+        )
+      )
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setUpdating(prev => {
+        const newState = { ...prev }
+        delete newState[key]
+        return newState
+      })
     }
   }
 
@@ -290,66 +363,250 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       }),
       columnHelper.accessor('etape', {
         header: 'Étape',
-        cell: ({ row }) => (
-          <Chip
-            label={row.original.etape.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            color={getEtapeColor(row.original.etape)}
-            variant='tonal'
-            size='small'
-          />
-        )
+        cell: ({ row }) => {
+          const isUpdating = updating[`${row.original.id}-etape`]
+          const currentEtape = options?.etapes.find(e => e.value === row.original.etape)
+          
+          return (
+            <FormControl size='small' sx={{ minWidth: 180 }}>
+              <Select
+                value={row.original.etape}
+                onChange={(e) => handleFieldUpdate(row.original.id, 'etape', e.target.value)}
+                disabled={isUpdating || !options}
+                displayEmpty
+                renderValue={(value) => (
+                  <Chip
+                    label={currentEtape?.label || value.replace(/_/g, ' ')}
+                    color={getEtapeColor(value) as any}
+                    variant='tonal'
+                    size='small'
+                  />
+                )}
+                sx={{
+                  '& .MuiSelect-select': { 
+                    padding: '4px 8px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }
+                }}
+              >
+                {options?.etapes.map(etape => (
+                  <MenuItem key={etape.value} value={etape.value}>
+                    <Chip
+                      label={etape.label}
+                      color={etape.color as any}
+                      variant='tonal'
+                      size='small'
+                      sx={{ width: '100%' }}
+                    />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )
+        }
       }),
       columnHelper.accessor('status', {
         header: 'Statut',
-        cell: ({ row }) => (
-          <div className='flex items-center gap-2'>
-            <i 
-              className={classnames('ri-circle-fill text-xs', {
-                'text-info': row.original.status === 'nouveau',
-                'text-primary': row.original.status === 'en_cours', 
-                'text-success': row.original.status === 'termine',
-                'text-error': row.original.status === 'annule',
-                'text-warning': row.original.status === 'bloque'
-              })} 
-            />
-            <Typography color='text.primary' className='capitalize'>
-              {row.original.status.replace('_', ' ')}
-            </Typography>
-          </div>
-        )
+        cell: ({ row }) => {
+          const isUpdating = updating[`${row.original.id}-status`]
+          const currentStatus = options?.statuts.find(s => s.value === row.original.status)
+          
+          return (
+            <FormControl size='small' sx={{ minWidth: 140 }}>
+              <Select
+                value={row.original.status}
+                onChange={(e) => handleFieldUpdate(row.original.id, 'status', e.target.value)}
+                disabled={isUpdating || !options}
+                displayEmpty
+                renderValue={(value) => (
+                  <div className='flex items-center gap-2'>
+                    <i 
+                      className={classnames('ri-circle-fill text-xs', {
+                        'text-info': value === 'nouveau',
+                        'text-primary': value === 'en_cours', 
+                        'text-success': value === 'termine',
+                        'text-error': value === 'annule',
+                        'text-warning': value === 'bloque'
+                      })} 
+                    />
+                    <Typography variant='body2' className='capitalize'>
+                      {currentStatus?.label || value.replace('_', ' ')}
+                    </Typography>
+                  </div>
+                )}
+                sx={{
+                  '& .MuiSelect-select': { 
+                    padding: '6px 8px'
+                  }
+                }}
+              >
+                {options?.statuts.map(status => (
+                  <MenuItem key={status.value} value={status.value}>
+                    <div className='flex items-center gap-2 w-full'>
+                      <i 
+                        className={classnames('ri-circle-fill text-xs', {
+                          'text-info': status.value === 'nouveau',
+                          'text-primary': status.value === 'en_cours', 
+                          'text-success': status.value === 'termine',
+                          'text-error': status.value === 'annule',
+                          'text-warning': status.value === 'bloque'
+                        })} 
+                      />
+                      <Typography variant='body2'>
+                        {status.label}
+                      </Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )
+        }
       }),
       columnHelper.accessor('vendeur', {
         header: 'Vendeur',
-        cell: ({ row }) => (
-          <div className='flex items-center gap-3'>
-            {getUserAvatar(row.original.vendeur)}
-            <Typography color='text.primary'>
-              {row.original.vendeur?.name || 'Non assigné'}
-            </Typography>
-          </div>
-        )
+        cell: ({ row }) => {
+          const isUpdating = updating[`${row.original.id}-vendeurId`]
+          
+          return (
+            <FormControl size='small' sx={{ minWidth: 200 }}>
+              <Select
+                value={row.original.vendeur?.id || ''}
+                onChange={(e) => handleFieldUpdate(row.original.id, 'vendeurId', e.target.value || null)}
+                disabled={isUpdating || !options}
+                displayEmpty
+                renderValue={(value) => {
+                  const user = value ? options?.vendeurs.find(v => v.id === value) : null
+                  return (
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(user || row.original.vendeur)}
+                      <Typography variant='body2'>
+                        {user?.name || row.original.vendeur?.name || 'Non assigné'}
+                      </Typography>
+                    </div>
+                  )
+                }}
+                sx={{
+                  '& .MuiSelect-select': { 
+                    padding: '6px 8px'
+                  }
+                }}
+              >
+                <MenuItem value=''>
+                  <div className='flex items-center gap-2'>
+                    {getUserAvatar(null)}
+                    <Typography variant='body2'>Non assigné</Typography>
+                  </div>
+                </MenuItem>
+                {options?.vendeurs.map(vendeur => (
+                  <MenuItem key={vendeur.id} value={vendeur.id}>
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(vendeur)}
+                      <Typography variant='body2'>{vendeur.name}</Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )
+        }
       }),
       columnHelper.accessor('chiffreur', {
         header: 'Chiffreur',
-        cell: ({ row }) => (
-          <div className='flex items-center gap-3'>
-            {getUserAvatar(row.original.chiffreur)}
-            <Typography color='text.primary'>
-              {row.original.chiffreur?.name || 'Non assigné'}
-            </Typography>
-          </div>
-        )
+        cell: ({ row }) => {
+          const isUpdating = updating[`${row.original.id}-chiffreurId`]
+          
+          return (
+            <FormControl size='small' sx={{ minWidth: 200 }}>
+              <Select
+                value={row.original.chiffreur?.id || ''}
+                onChange={(e) => handleFieldUpdate(row.original.id, 'chiffreurId', e.target.value || null)}
+                disabled={isUpdating || !options}
+                displayEmpty
+                renderValue={(value) => {
+                  const user = value ? options?.chiffreurs.find(c => c.id === value) : null
+                  return (
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(user || row.original.chiffreur)}
+                      <Typography variant='body2'>
+                        {user?.name || row.original.chiffreur?.name || 'Non assigné'}
+                      </Typography>
+                    </div>
+                  )
+                }}
+                sx={{
+                  '& .MuiSelect-select': { 
+                    padding: '6px 8px'
+                  }
+                }}
+              >
+                <MenuItem value=''>
+                  <div className='flex items-center gap-2'>
+                    {getUserAvatar(null)}
+                    <Typography variant='body2'>Non assigné</Typography>
+                  </div>
+                </MenuItem>
+                {options?.chiffreurs.map(chiffreur => (
+                  <MenuItem key={chiffreur.id} value={chiffreur.id}>
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(chiffreur)}
+                      <Typography variant='body2'>{chiffreur.name}</Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )
+        }
       }),
       columnHelper.accessor('chefDeProjet', {
         header: 'Chef de projet',
-        cell: ({ row }) => (
-          <div className='flex items-center gap-3'>
-            {getUserAvatar(row.original.chefDeProjet)}
-            <Typography color='text.primary'>
-              {row.original.chefDeProjet?.name || 'Non assigné'}
-            </Typography>
-          </div>
-        )
+        cell: ({ row }) => {
+          const isUpdating = updating[`${row.original.id}-chefProjetId`]
+          
+          return (
+            <FormControl size='small' sx={{ minWidth: 200 }}>
+              <Select
+                value={row.original.chefDeProjet?.id || ''}
+                onChange={(e) => handleFieldUpdate(row.original.id, 'chefProjetId', e.target.value || null)}
+                disabled={isUpdating || !options}
+                displayEmpty
+                renderValue={(value) => {
+                  const user = value ? options?.chefsDeProjet.find(c => c.id === value) : null
+                  return (
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(user || row.original.chefDeProjet)}
+                      <Typography variant='body2'>
+                        {user?.name || row.original.chefDeProjet?.name || 'Non assigné'}
+                      </Typography>
+                    </div>
+                  )
+                }}
+                sx={{
+                  '& .MuiSelect-select': { 
+                    padding: '6px 8px'
+                  }
+                }}
+              >
+                <MenuItem value=''>
+                  <div className='flex items-center gap-2'>
+                    {getUserAvatar(null)}
+                    <Typography variant='body2'>Non assigné</Typography>
+                  </div>
+                </MenuItem>
+                {options?.chefsDeProjet.map(chef => (
+                  <MenuItem key={chef.id} value={chef.id}>
+                    <div className='flex items-center gap-2'>
+                      {getUserAvatar(chef)}
+                      <Typography variant='body2'>{chef.name}</Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )
+        }
       }),
       columnHelper.accessor('prixAchat', {
         header: 'Prix d\'achat',
@@ -424,7 +681,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         enableSorting: false
       }
     ],
-    [data, loading, handleImperatifChange, formatPrice, formatMarge, getUserAvatar]
+    [data, loading, handleImperatifChange, formatPrice, formatMarge, getUserAvatar, options, updating, handleFieldUpdate]
   )
 
   const table = useReactTable({
