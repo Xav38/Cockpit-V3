@@ -28,13 +28,13 @@ async function main() {
     }
   })
 
-  // Créer quelques utilisateurs de test
+  // Créer quelques utilisateurs de test avec les couleurs du thème Materialize
   const vendeur1 = await prisma.user.create({
     data: {
       email: 'jean.dupont@company.com',
       name: 'Jean Dupont',
       initials: 'JD',
-      color: '#1976d2',
+      color: '#666CFF', // Primary Main
       roleId: roleVendeur.id
     }
   })
@@ -44,7 +44,7 @@ async function main() {
       email: 'pierre.durand@company.com', 
       name: 'Pierre Durand',
       initials: 'PD',
-      color: '#388e3c',
+      color: '#72E128', // Success Main
       roleId: roleVendeur.id
     }
   })
@@ -54,7 +54,7 @@ async function main() {
       email: 'marie.martin@company.com',
       name: 'Marie Martin',
       initials: 'MM',
-      color: '#f57c00',
+      color: '#FDB528', // Warning Main
       roleId: roleChiffreur.id
     }
   })
@@ -64,7 +64,7 @@ async function main() {
       email: 'luc.moreau@company.com',
       name: 'Luc Moreau',
       initials: 'LM',
-      color: '#7b1fa2',
+      color: '#26C6F9', // Info Main
       roleId: roleChiffreur.id
     }
   })
@@ -74,7 +74,7 @@ async function main() {
       email: 'paul.mercier@company.com',
       name: 'Paul Mercier',
       initials: 'PM',
-      color: '#c62828',
+      color: '#FF4D49', // Error Main
       roleId: roleChefProjet.id
     }
   })

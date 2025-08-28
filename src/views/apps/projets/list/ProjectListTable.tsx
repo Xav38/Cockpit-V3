@@ -203,7 +203,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const getUserAvatar = (user: { name: string; initials?: string; color?: string } | null) => {
     if (!user) {
       return (
-        <CustomAvatar skin='light' size={32}>
+        <CustomAvatar skin='light' size={32} color='secondary'>
           ?
         </CustomAvatar>
       )
@@ -211,12 +211,17 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
 
     const initials = user.initials || getInitials(user.name)
     
+    // Couleurs du thème Materialize si aucune couleur personnalisée
+    const themeColors = ['#666CFF', '#72E128', '#FDB528', '#26C6F9', '#FF4D49', '#6D788D']
+    const fallbackColor = user.color || themeColors[user.name.length % themeColors.length]
+    
     return (
       <CustomAvatar 
         skin='filled' 
         size={32}
         sx={{
-          backgroundColor: user.color || undefined,
+          backgroundColor: fallbackColor,
+          color: '#FFFFFF',
           fontSize: '0.875rem',
           fontWeight: 600
         }}
