@@ -14,6 +14,7 @@ import Rating from '@mui/material/Rating'
 import TablePagination from '@mui/material/TablePagination'
 import Divider from '@mui/material/Divider'
 import Button from '@mui/material/Button'
+import Switch from '@mui/material/Switch'
 import type { TextFieldProps } from '@mui/material/TextField'
 
 // Third-party Imports
@@ -191,14 +192,23 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       columnHelper.accessor('delai', {
         header: 'Délai',
         cell: ({ row }) => (
-          <div className='flex items-center gap-2'>
-            <Typography color='text.primary'>
-              {formatDate(row.original.delai)}
-            </Typography>
-            {row.original.imperatif && (
-              <Chip label='Impératif' size='small' color='error' variant='filled' />
-            )}
-          </div>
+          <Typography 
+            color='text.primary' 
+            className={row.original.imperatif ? 'font-bold text-error' : ''}
+          >
+            {formatDate(row.original.delai)}
+          </Typography>
+        )
+      }),
+      columnHelper.accessor('imperatif', {
+        header: 'Impératif',
+        cell: ({ row }) => (
+          <Switch 
+            checked={row.original.imperatif}
+            color='error'
+            size='small'
+            disabled
+          />
         )
       }),
       columnHelper.accessor('etape', {
