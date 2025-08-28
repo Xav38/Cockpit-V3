@@ -138,6 +138,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [rowSelection, setRowSelection] = useState({})
   const [data, setData] = useState<ProjectDataType[]>(projectData)
   const [globalFilter, setGlobalFilter] = useState('')
+  const [loading, setLoading] = useState<string | null>(null)
 
   const formatDate = (dateString: string) => {
     try {
@@ -153,6 +154,39 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       style: 'currency',
       currency: 'EUR'
     }).format(price)
+  }
+
+  const handleImperatifChange = async (projectId: string, newValue: boolean) => {
+    setLoading(projectId)
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imperatif: newValue })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+      
+      const updatedProject = await response.json()
+      
+      // Mettre à jour les données locales
+      setData(prevData => 
+        prevData.map(project => 
+          project.id === projectId 
+            ? { ...project, imperatif: newValue }
+            : project
+        )
+      )
+    } catch (error) {
+      console.error('Erreur:', error)
+      // Vous pourriez ajouter une notification d'erreur ici
+    } finally {
+      setLoading(null)
+    }
   }
 
   const columns = useMemo<ColumnDef<ProjectDataType, any>[]>(
@@ -207,7 +241,8 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
             checked={row.original.imperatif}
             color='error'
             size='small'
-            disabled
+            disabled={loading === row.original.id}
+            onChange={(event) => handleImperatifChange(row.original.id, event.target.checked)}
           />
         )
       }),
@@ -338,7 +373,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         enableSorting: false
       }
     ],
-    [data]
+    [data, loading, handleImperatifChange]
   )
 
   const table = useReactTable({

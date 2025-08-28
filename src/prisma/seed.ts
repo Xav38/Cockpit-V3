@@ -33,6 +33,8 @@ async function main() {
     data: {
       email: 'jean.dupont@company.com',
       name: 'Jean Dupont',
+      initials: 'JD',
+      color: '#1976d2',
       roleId: roleVendeur.id
     }
   })
@@ -41,6 +43,8 @@ async function main() {
     data: {
       email: 'pierre.durand@company.com', 
       name: 'Pierre Durand',
+      initials: 'PD',
+      color: '#388e3c',
       roleId: roleVendeur.id
     }
   })
@@ -49,6 +53,8 @@ async function main() {
     data: {
       email: 'marie.martin@company.com',
       name: 'Marie Martin',
+      initials: 'MM',
+      color: '#f57c00',
       roleId: roleChiffreur.id
     }
   })
@@ -56,7 +62,9 @@ async function main() {
   const chiffreur2 = await prisma.user.create({
     data: {
       email: 'luc.moreau@company.com',
-      name: 'Luc Moreau', 
+      name: 'Luc Moreau',
+      initials: 'LM',
+      color: '#7b1fa2',
       roleId: roleChiffreur.id
     }
   })
@@ -65,6 +73,8 @@ async function main() {
     data: {
       email: 'paul.mercier@company.com',
       name: 'Paul Mercier',
+      initials: 'PM',
+      color: '#c62828',
       roleId: roleChefProjet.id
     }
   })
@@ -194,7 +204,7 @@ async function main() {
         etape: etapes[Math.floor(Math.random() * etapes.length)],
         vendeurId: Math.random() > 0.5 ? vendeur1.id : vendeur2.id,
         chiffreurId: Math.random() > 0.5 ? chiffreur1.id : chiffreur2.id,
-        chefProjetId: Math.random() > 0.3 ? (Math.random() > 0.5 ? chef1.id : chef2.id) : null,
+        chefProjetId: Math.random() > 0.3 ? chef1.id : null,
         prixAchat: Math.floor(Math.random() * 5000) + 500,
         prixVente: null,
         marge: Math.floor(Math.random() * 50) + 10,
