@@ -3,57 +3,58 @@ import { prisma } from '../../../lib/prisma'
 
 export async function GET() {
   try {
-    // Récupérer les utilisateurs par rôle
-    const [vendeurs, chiffreurs, chefsDeProjet] = await Promise.all([
-      prisma.user.findMany({
-        where: {
-          role: {
-            name: 'Vendeur'
+    // Récupérer tous les utilisateurs avec leurs rôles
+    const allUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        initials: true,
+        color: true,
+        roles: {
+          include: {
+            role: {
+              select: {
+                name: true
+              }
+            }
           }
-        },
-        select: {
-          id: true,
-          name: true,
-          initials: true,
-          color: true
-        },
-        orderBy: {
-          name: 'asc'
         }
-      }),
-      prisma.user.findMany({
-        where: {
-          role: {
-            name: 'Chiffreur'
-          }
-        },
-        select: {
-          id: true,
-          name: true,
-          initials: true,
-          color: true
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      }),
-      prisma.user.findMany({
-        where: {
-          role: {
-            name: 'Chef de Projet'
-          }
-        },
-        select: {
-          id: true,
-          name: true,
-          initials: true,
-          color: true
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      })
-    ])
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    })
+
+    // Créer des utilisateurs pour chaque rôle avec indication des rôles multiples
+    const vendeurs = allUsers
+      .filter(user => user.roles.some(ur => ur.role.name === 'Vendeur'))
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        initials: user.initials,
+        color: user.color,
+        roles: user.roles.map(ur => ur.role.name)
+      }))
+
+    const chiffreurs = allUsers
+      .filter(user => user.roles.some(ur => ur.role.name === 'Chiffreur'))
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        initials: user.initials,
+        color: user.color,
+        roles: user.roles.map(ur => ur.role.name)
+      }))
+
+    const chefsDeProjet = allUsers
+      .filter(user => user.roles.some(ur => ur.role.name === 'Chef de Projet'))
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        initials: user.initials,
+        color: user.color,
+        roles: user.roles.map(ur => ur.role.name)
+      }))
 
     // Définir les options statiques pour statuts et étapes
     const statuts = [

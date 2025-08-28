@@ -79,6 +79,7 @@ type UserType = {
   name: string
   initials: string
   color: string
+  roles?: string[]
 }
 
 type ProjectDataType = {
@@ -216,7 +217,12 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     { value: 'imperatif', label: 'Impératif' },
     { value: 'importance', label: 'Chances de gains' },
     { value: 'dateMonth', label: 'Mois de demande' },
-    { value: 'delaiMonth', label: 'Mois de délai' }
+    { value: 'delaiMonth', label: 'Mois de délai' },
+    { value: 'separator1', label: '── Critères combinés ──', disabled: true },
+    { value: 'responsableProjet', label: 'Responsable projet (Chiffreur OU Chef)' },
+    { value: 'equipeVente', label: 'Équipe vente (Vendeur OU Chiffreur)' },
+    { value: 'equipeProduction', label: 'Équipe production (Chiffreur OU Chef)' },
+    { value: 'prioriteDate', label: 'Priorité & Urgence (Impératif + Date)' }
   ]
 
   useEffect(() => {
@@ -377,6 +383,144 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     imperatifFilter, importanceFilter, tagsFilter
   ])
 
+  const getGroupDisplayElement = (label: string, groupBy: string, project?: ProjectDataType) => {
+    switch (groupBy) {
+      case 'status':
+        const statusConfig = {
+          nouveau: { color: 'text-info', icon: 'ri-circle-fill', bgColor: 'info' },
+          en_cours: { color: 'text-primary', icon: 'ri-circle-fill', bgColor: 'primary' },
+          termine: { color: 'text-success', icon: 'ri-circle-fill', bgColor: 'success' },
+          annule: { color: 'text-error', icon: 'ri-circle-fill', bgColor: 'error' },
+          bloque: { color: 'text-warning', icon: 'ri-circle-fill', bgColor: 'warning' }
+        }
+        const statusKey = label.replace('Sans statut', 'nouveau')
+        const statusStyle = statusConfig[statusKey] || statusConfig.nouveau
+        
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <i className={`${statusStyle.icon} text-xs ${statusStyle.color}`} />
+            <Typography variant="inherit">
+              {label.charAt(0).toUpperCase() + label.slice(1).replace('_', ' ')}
+            </Typography>
+          </Box>
+        )
+
+      case 'etape':
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              size="small"
+              variant="tonal"
+              label={label}
+              color="secondary"
+            />
+          </Box>
+        )
+
+      case 'vendeur':
+      case 'chiffreur':  
+      case 'chefDeProjet':
+        if (label.startsWith('Sans ')) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <div className="flex items-center justify-center bs-6 is-6 rounded bg-gray-100">
+                <i className="ri-user-line text-xs text-textDisabled" />
+              </div>
+              <Typography variant="inherit" color="text.secondary">{label}</Typography>
+            </Box>
+          )
+        }
+        
+        // Extraire le nom de l'utilisateur du label
+        const userName = label.replace(/^(Chef: |Chiffreur: |Vendeur: |Chef de projet: )/, '')
+        const user = project && (
+          project.vendeur?.name === userName ? project.vendeur :
+          project.chiffreur?.name === userName ? project.chiffreur :
+          project.chefDeProjet?.name === userName ? project.chefDeProjet : null
+        )
+        
+        if (user) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <div className="flex items-center justify-center bs-6 is-6 rounded" style={{ backgroundColor: user.color + '20' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600, color: user.color }}>
+                  {user.initials}
+                </Typography>
+              </div>
+              <Typography variant="inherit">{userName}</Typography>
+            </Box>
+          )
+        }
+        break
+
+      case 'imperatif':
+        const isImperatif = label === 'Impératif'
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Switch 
+              checked={isImperatif}
+              disabled 
+              size="small"
+              color={isImperatif ? 'error' : 'success'}
+            />
+            <Typography variant="inherit">{label}</Typography>
+          </Box>
+        )
+
+      case 'importance':
+        const rating = parseInt(label.split(' ')[0]) || 0
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Rating value={rating} readOnly size="small" max={3} />
+            <Typography variant="inherit">{label}</Typography>
+          </Box>
+        )
+
+      case 'responsableProjet':
+      case 'equipeVente': 
+      case 'equipeProduction':
+        if (label.startsWith('Sans ')) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <div className="flex items-center justify-center bs-6 is-6 rounded bg-gray-100">
+                <i className="ri-team-line text-xs text-textDisabled" />
+              </div>
+              <Typography variant="inherit" color="text.secondary">{label}</Typography>
+            </Box>
+          )
+        }
+        
+        // Pour les critères combinés avec utilisateurs, extraire le nom et le rôle
+        const match = label.match(/^(Chef|Chiffreur|Vendeur|Chef de projet): (.+)$/)
+        if (match && project) {
+          const [, role, name] = match
+          const user2 = 
+            project.vendeur?.name === name ? project.vendeur :
+            project.chiffreur?.name === name ? project.chiffreur :
+            project.chefDeProjet?.name === name ? project.chefDeProjet : null
+            
+          if (user2) {
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <div className="flex items-center justify-center bs-6 is-6 rounded" style={{ backgroundColor: user2.color + '20' }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600, color: user2.color }}>
+                    {user2.initials}
+                  </Typography>
+                </div>
+                <Typography variant="inherit">{role}: {name}</Typography>
+              </Box>
+            )
+          }
+        }
+        break
+
+      default:
+        return <Typography variant="inherit">{label}</Typography>
+    }
+    
+    return <Typography variant="inherit">{label}</Typography>
+  }
+
   const getGroupValue = (project: ProjectDataType, groupBy: string): string => {
     switch (groupBy) {
       case 'status':
@@ -409,6 +553,39 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         } catch {
           return 'Date invalide'
         }
+      
+      // Critères combinés
+      case 'responsableProjet':
+        if (project.chefDeProjet?.name) return `Chef: ${project.chefDeProjet.name}`
+        if (project.chiffreur?.name) return `Chiffreur: ${project.chiffreur.name}`
+        return 'Sans responsable'
+      
+      case 'equipeVente':
+        if (project.vendeur?.name) return `Vendeur: ${project.vendeur.name}`
+        if (project.chiffreur?.name) return `Chiffreur: ${project.chiffreur.name}`
+        return 'Sans équipe vente'
+      
+      case 'equipeProduction':
+        if (project.chefDeProjet?.name) return `Chef de projet: ${project.chefDeProjet.name}`
+        if (project.chiffreur?.name) return `Chiffreur: ${project.chiffreur.name}`
+        return 'Sans équipe production'
+      
+      case 'prioriteDate':
+        const isImperatif = project.imperatif ? 'Impératif' : 'Flexible'
+        try {
+          const date = new Date(project.delai)
+          const now = new Date()
+          const diffTime = date.getTime() - now.getTime()
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          
+          if (diffDays < 0) return `${isImperatif} - En retard (${Math.abs(diffDays)}j)`
+          if (diffDays <= 7) return `${isImperatif} - Urgent (${diffDays}j)`
+          if (diffDays <= 30) return `${isImperatif} - Proche (${diffDays}j)`
+          return `${isImperatif} - À long terme (${diffDays}j)`
+        } catch {
+          return `${isImperatif} - Date invalide`
+        }
+      
       default:
         return 'Autre'
     }
@@ -488,13 +665,13 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
           }
           
           const level3 = level2.children.get(key3)
-          level3.projects = projects
+          level3.projects.push(...projects)
           level3.count = count
         } else {
-          level2.projects = projects
+          level2.projects.push(...projects)
         }
       } else {
-        level1.projects = projects
+        level1.projects.push(...projects)
       }
     })
 
@@ -916,9 +1093,16 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                         onClick={() => handleSelect(option.id)}
                         selected={option.id === user?.id}
                       >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {getUserAvatar(option)}
-                          <Typography>{option.name}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: 'column', alignItems: 'flex-start' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {getUserAvatar(option)}
+                            <Typography>{option.name}</Typography>
+                          </Box>
+                          {option.roles && option.roles.length > 1 && (
+                            <Typography variant='caption' sx={{ color: 'text.secondary', ml: 4.5 }}>
+                              Rôles: {option.roles.join(', ')}
+                            </Typography>
+                          )}
                         </Box>
                       </MenuItem>
                     ))}
@@ -1280,7 +1464,14 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       <MenuItem value=''>Tous les vendeurs</MenuItem>
                       {options?.vendeurs.map(vendeur => (
                         <MenuItem key={vendeur.id} value={vendeur.id}>
-                          {vendeur.name}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <Typography>{vendeur.name}</Typography>
+                            {vendeur.roles && vendeur.roles.length > 1 && (
+                              <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+                                Rôles: {vendeur.roles.join(', ')}
+                              </Typography>
+                            )}
+                          </Box>
                         </MenuItem>
                       ))}
                     </Select>
@@ -1295,7 +1486,14 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       <MenuItem value=''>Tous les chiffreurs</MenuItem>
                       {options?.chiffreurs.map(chiffreur => (
                         <MenuItem key={chiffreur.id} value={chiffreur.id}>
-                          {chiffreur.name}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <Typography>{chiffreur.name}</Typography>
+                            {chiffreur.roles && chiffreur.roles.length > 1 && (
+                              <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+                                Rôles: {chiffreur.roles.join(', ')}
+                              </Typography>
+                            )}
+                          </Box>
                         </MenuItem>
                       ))}
                     </Select>
@@ -1310,7 +1508,14 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                       <MenuItem value=''>Tous les chefs de projet</MenuItem>
                       {options?.chefsDeProjet.map(chef => (
                         <MenuItem key={chef.id} value={chef.id}>
-                          {chef.name}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <Typography>{chef.name}</Typography>
+                            {chef.roles && chef.roles.length > 1 && (
+                              <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+                                Rôles: {chef.roles.join(', ')}
+                              </Typography>
+                            )}
+                          </Box>
                         </MenuItem>
                       ))}
                     </Select>
@@ -1720,7 +1925,17 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                     }}
                   >
                     {groupingOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
+                      <MenuItem 
+                        key={option.value} 
+                        value={option.value}
+                        disabled={option.disabled}
+                        sx={option.disabled ? { 
+                          fontStyle: 'italic', 
+                          color: 'text.secondary',
+                          fontSize: '0.8rem',
+                          textAlign: 'center'
+                        } : {}}
+                      >
                         {option.label}
                       </MenuItem>
                     ))}
@@ -1744,7 +1959,17 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                     {groupingOptions
                       .filter(opt => opt.value !== groupBy1) // Éviter la duplication
                       .map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
+                        <MenuItem 
+                          key={option.value} 
+                          value={option.value}
+                          disabled={option.disabled}
+                          sx={option.disabled ? { 
+                            fontStyle: 'italic', 
+                            color: 'text.secondary',
+                            fontSize: '0.8rem',
+                            textAlign: 'center'
+                          } : {}}
+                        >
                           {option.label}
                         </MenuItem>
                       ))}
@@ -1860,10 +2085,15 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                   {/* Niveau 1 */}
                   <tr className='bg-actionHover'>
                     <td colSpan={table.getVisibleFlatColumns().length} className='px-4 py-2'>
-                      <Typography variant='subtitle1' sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <i className='ri-folder-line text-primary' />
-                        {group1.label} ({group1.count} projet{group1.count > 1 ? 's' : ''})
-                      </Typography>
+                        <Typography variant='subtitle1' sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {getGroupDisplayElement(group1.label, groupBy1, group1.projects?.[0])}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          ({group1.count} projet{group1.count > 1 ? 's' : ''})
+                        </Typography>
+                      </Box>
                     </td>
                   </tr>
                   
@@ -1872,10 +2102,15 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                     <React.Fragment key={`${key1}-${key2}`}>
                       <tr className='bg-action/50'>
                         <td colSpan={table.getVisibleFlatColumns().length} className='px-8 py-1'>
-                          <Typography variant='subtitle2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <i className='ri-folder-2-line text-secondary' />
-                            {group2.label} ({group2.count} projet{group2.count > 1 ? 's' : ''})
-                          </Typography>
+                            <Typography variant='subtitle2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {getGroupDisplayElement(group2.label, groupBy2, group2.projects?.[0])}
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary'>
+                              ({group2.count} projet{group2.count > 1 ? 's' : ''})
+                            </Typography>
+                          </Box>
                         </td>
                       </tr>
                       
@@ -1884,10 +2119,15 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
                         <React.Fragment key={`${key1}-${key2}-${key3}`}>
                           <tr className='bg-action/25'>
                             <td colSpan={table.getVisibleFlatColumns().length} className='px-12 py-1'>
-                              <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <i className='ri-file-list-line text-textSecondary' />
-                                {group3.label} ({group3.count} projet{group3.count > 1 ? 's' : ''})
-                              </Typography>
+                                <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {getGroupDisplayElement(group3.label, groupBy3, group3.projects?.[0])}
+                                </Typography>
+                                <Typography variant='caption' color='text.secondary'>
+                                  ({group3.count} projet{group3.count > 1 ? 's' : ''})
+                                </Typography>
+                              </Box>
                             </td>
                           </tr>
                           {/* Projets du niveau 3 */}

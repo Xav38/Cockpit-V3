@@ -17,15 +17,14 @@ model User {
   initials     String
   color        String
   phone        String?
-  roleId       String?
   departmentId String?
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   // Relations
-  role                 Role?       @relation(fields: [roleId], references: [id])
   department           Department? @relation(fields: [departmentId], references: [id])
+  roles                UserRole[]
   projectsAsVendeur    Project[]   @relation("VendeurProjects")
   projectsAsChiffreur  Project[]   @relation("ChiffreurProjects")
   projectsAsChefProjet Project[]   @relation("ChefProjetProjects")
@@ -156,9 +155,23 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  users User[]
+  users UserRole[]
 
   @@map("roles")
+}
+
+// Table de liaison pour la relation many-to-many User-Role
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
 }
 
 // Enums convertis en commentaires pour SQLite
