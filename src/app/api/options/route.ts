@@ -66,22 +66,28 @@ export async function GET() {
     ]
 
     const etapes = [
+      { value: 'demande', label: 'Demande', color: 'info' },
       { value: 'maquette', label: 'Maquette', color: 'info' },
-      { value: 'plans_techniques', label: 'Plans techniques', color: 'primary' },
+      { value: 'plans', label: 'Plans Techniques', color: 'primary' },
       { value: 'chiffrage', label: 'Chiffrage', color: 'warning' },
-      { value: 'validation_chiffrage', label: 'Validation chiffrage', color: 'secondary' },
-      { value: 'en_attente_retour_client', label: 'En attente retour client', color: 'warning' },
-      { value: 'validation_client', label: 'Validation client', color: 'success' },
-      { value: 'gestion_de_projet', label: 'Gestion de projet', color: 'primary' },
+      { value: 'validation_chiffrage', label: 'Validation Chiffrage', color: 'secondary' },
+      { value: 'validation_client', label: 'Validation Client', color: 'success' },
+      { value: 'gestion_projet', label: 'Gestion Projet', color: 'primary' },
       { value: 'production', label: 'Production', color: 'info' },
-      { value: 'termine', label: 'Terminé', color: 'success' },
-      { value: 'annule', label: 'Annulé', color: 'error' }
+      { value: 'rework', label: 'Rework', color: 'warning' }
     ]
 
     return NextResponse.json({
       vendeurs,
       chiffreurs,
       chefsDeProjet,
+      users: allUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        initials: user.initials,
+        color: user.color,
+        roles: user.roles.map(ur => ur.role.name)
+      })),
       statuts,
       etapes
     })
