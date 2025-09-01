@@ -4,6 +4,9 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
+// Third-party Imports
+import classnames from 'classnames'
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -35,6 +38,7 @@ const NewProjectForm = () => {
   // États du formulaire
   const [projectData, setProjectData] = useState({
     numeroORE: '',
+    etape: 'maquette',
     status: 'nouveau',
     nomClient: '',
     dateDemande: new Date().toISOString().split('T')[0],
@@ -262,8 +266,8 @@ const NewProjectForm = () => {
           </AccordionSummary>
           <AccordionDetails>
             <Grid container spacing={3}>
-              {/* Numéro ORE et Status */}
-              <Grid item xs={12} md={6}>
+              {/* Numéro ORE, Etape et Status */}
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Numéro ORE"
@@ -273,7 +277,28 @@ const NewProjectForm = () => {
                   variant="outlined"
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Étape</InputLabel>
+                  <Select
+                    value={projectData.etape}
+                    onChange={(e) => handleInputChange('etape', e.target.value)}
+                    label="Étape"
+                  >
+                    {(options.etapes || []).map(etape => (
+                      <MenuItem key={etape.value} value={etape.value}>
+                        <Chip
+                          size="small"
+                          label={etape.label}
+                          color={etape.color}
+                          variant="tonal"
+                        />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
                   <InputLabel>Statut</InputLabel>
                   <Select
@@ -283,11 +308,18 @@ const NewProjectForm = () => {
                   >
                     {(options.statuts || []).map(status => (
                       <MenuItem key={status.value} value={status.value}>
-                        <Chip
-                          size="small"
-                          label={status.label}
-                          color={getStatusColor(status.value)}
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <i 
+                            className={classnames('ri-circle-fill text-xs', {
+                              'text-info': status.value === 'nouveau',
+                              'text-primary': status.value === 'en_cours', 
+                              'text-success': status.value === 'termine',
+                              'text-error': status.value === 'annule',
+                              'text-warning': status.value === 'bloque'
+                            })} 
+                          />
+                          <Typography variant='body2'>{status.label}</Typography>
+                        </Box>
                       </MenuItem>
                     ))}
                   </Select>
@@ -391,7 +423,7 @@ const NewProjectForm = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="body2">Importance:</Typography>
+                  <Typography variant="body2">Chances de gains:</Typography>
                   <Rating
                     value={projectData.importance}
                     onChange={(event, newValue) => handleInputChange('importance', newValue)}
@@ -403,7 +435,7 @@ const NewProjectForm = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Concerné"
+                  label="Concerne"
                   value={projectData.concerne}
                   onChange={(e) => handleInputChange('concerne', e.target.value)}
                   variant="outlined"

@@ -93,7 +93,7 @@ export async function POST(request) {
         delai: data.dateInstallation ? new Date(data.dateInstallation) : new Date(),
         imperatif: false,
         status: data.status || 'nouveau',
-        etape: 'maquette',
+        etape: data.etape || 'maquette',
         prixAchat: 0,
         marge: 0,
         prixVente: 0,
