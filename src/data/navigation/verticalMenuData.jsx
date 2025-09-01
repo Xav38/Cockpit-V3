@@ -169,6 +169,10 @@ const verticalMenuData = dictionary => [
             href: '/apps/projets/list'
           },
           {
+            label: dictionary['navigation'].add,
+            href: '/apps/projets/nouveau'
+          },
+          {
             label: dictionary['navigation'].attributions,
             href: '/apps/projets/attributions'
           }

@@ -171,7 +171,7 @@ const getEtapeColor = (etape: string): ThemeColor => {
 
 const columnHelper = createColumnHelper<ProjectDataType>()
 
-const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[] }) => {
+const AttributionsTable = ({ projectData = [] }: { projectData?: ProjectDataType[] }) => {
   const [rowSelection, setRowSelection] = useState({})
   const [data, setData] = useState<ProjectDataType[]>(projectData)
   const [globalFilter, setGlobalFilter] = useState('')
@@ -200,14 +200,15 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   const [importanceFilter, setImportanceFilter] = useState('')
   const [tagsFilter, setTagsFilter] = useState<string[]>([])
 
-  // États pour le regroupement
-  const [groupBy1, setGroupBy1] = useState('')
-  const [groupBy2, setGroupBy2] = useState('')
+  // États pour le regroupement - Par défaut: regroupement par personne puis par étape
+  const [groupBy1, setGroupBy1] = useState('attribution')
+  const [groupBy2, setGroupBy2] = useState('etape')
   const [groupBy3, setGroupBy3] = useState('')
 
-  // Options de regroupement basées sur toutes les colonnes
+  // Options de regroupement spécifiques pour la page Attributions
   const groupingOptions = [
     { value: '', label: 'Aucun regroupement' },
+    { value: 'attribution', label: 'Par personne assignée' },
     { value: 'status', label: 'Statut' },
     { value: 'etape', label: 'Étape' },
     { value: 'client', label: 'Client' },
@@ -217,12 +218,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
     { value: 'imperatif', label: 'Impératif' },
     { value: 'importance', label: 'Chances de gains' },
     { value: 'dateMonth', label: 'Mois de demande' },
-    { value: 'delaiMonth', label: 'Mois de délai' },
-    { value: 'separator1', label: '── Critères combinés ──', disabled: true },
-    { value: 'responsableProjet', label: 'Responsable projet (Chiffreur OU Chef)' },
-    { value: 'equipeVente', label: 'Équipe vente (Vendeur OU Chiffreur)' },
-    { value: 'equipeProduction', label: 'Équipe production (Chiffreur OU Chef)' },
-    { value: 'prioriteDate', label: 'Priorité & Urgence (Impératif + Date)' }
+    { value: 'delaiMonth', label: 'Mois de délai' }
   ]
 
   useEffect(() => {
@@ -433,21 +429,59 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
         
         // Extraire le nom de l'utilisateur du label
         const userName = label.replace(/^(Chef: |Chiffreur: |Vendeur: |Chef de projet: )/, '')
-        const user = project && (
+        const roleUser = project && (
           project.vendeur?.name === userName ? project.vendeur :
           project.chiffreur?.name === userName ? project.chiffreur :
           project.chefDeProjet?.name === userName ? project.chefDeProjet : null
         )
         
-        if (user) {
+        if (roleUser) {
           return (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {getUserAvatar(user)}
+              {getUserAvatar(roleUser)}
               <Typography variant="inherit">{userName}</Typography>
             </Box>
           )
         }
         break
+
+      case 'attribution':
+        if (label.startsWith('🔴 Non assigné')) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <div className="flex items-center justify-center bs-6 is-6 rounded bg-gray-100">
+                <i className="ri-user-line text-xs text-textDisabled" />
+              </div>
+              <Typography variant="inherit" color="text.secondary">{label}</Typography>
+            </Box>
+          )
+        }
+        
+        // Extraire le nom de l'utilisateur du label (après "👤 ")
+        const personName = label.replace('👤 ', '')
+        
+        // Plutôt que d'utiliser seulement le premier projet, on doit chercher l'utilisateur
+        // dans les données globales ou créer un utilisateur factice avec le nom
+        const assignedUser = project && (
+          project.chefDeProjet?.name === personName ? project.chefDeProjet :
+          project.chiffreur?.name === personName ? project.chiffreur : null
+        )
+        
+        // Si on ne trouve pas dans le projet donné, créer un utilisateur factice
+        // avec la même logique de couleur que getUserAvatar
+        const userToDisplay = assignedUser || {
+          name: personName,
+          initials: getInitials(personName),
+          // Utiliser la même logique que getUserAvatar pour la cohérence des couleurs
+          color: undefined // Laisser getUserAvatar gérer la couleur
+        }
+        
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {getUserAvatar(userToDisplay)}
+            <Typography variant="inherit">{personName}</Typography>
+          </Box>
+        )
 
       case 'imperatif':
         const isImperatif = label === 'Impératif'
@@ -515,6 +549,20 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
 
   const getGroupValue = (project: ProjectDataType, groupBy: string): string => {
     switch (groupBy) {
+      case 'attribution':
+        // Regroupement par personne sans distinction de rôle
+        if (!project.chiffreur && !project.chefDeProjet) {
+          return '🔴 Non assigné'
+        }
+        // Regrouper par la personne, peu importe son rôle
+        // Priorité au chef de projet s'il y en a un
+        if (project.chefDeProjet?.name) {
+          return `👤 ${project.chefDeProjet.name}`
+        }
+        if (project.chiffreur?.name) {
+          return `👤 ${project.chiffreur.name}`
+        }
+        return '🔴 Non assigné'
       case 'status':
         return project.status || 'Sans statut'
       case 'etape':
@@ -667,7 +715,23 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
       }
     })
 
-    return { flatData: filteredData, groupedData: organizedGroups }
+    // Trier les groupes pour mettre les non-assignés en premier
+    const sortedGroups = new Map()
+    
+    // D'abord ajouter le groupe "Non assigné" s'il existe
+    if (organizedGroups.has('🔴 Non assigné')) {
+      sortedGroups.set('🔴 Non assigné', organizedGroups.get('🔴 Non assigné'))
+    }
+    
+    // Ensuite ajouter tous les autres groupes dans l'ordre alphabétique
+    Array.from(organizedGroups.entries())
+      .filter(([key]) => key !== '🔴 Non assigné')
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([key, value]) => {
+        sortedGroups.set(key, value)
+      })
+    
+    return { flatData: filteredData, groupedData: sortedGroups }
   }, [filteredData, groupBy1, groupBy2, groupBy3])
 
   const formatDate = (dateString: string) => {
@@ -1328,7 +1392,7 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
 
   return (
     <Card>
-      <CardHeader title='Liste des Projets' />
+      <CardHeader title='Attributions des Projets' />
       <Divider />
       {/* Barre de filtrage améliorée */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -2237,4 +2301,4 @@ const ProjectListTable = ({ projectData = [] }: { projectData?: ProjectDataType[
   )
 }
 
-export default ProjectListTable
+export default AttributionsTable

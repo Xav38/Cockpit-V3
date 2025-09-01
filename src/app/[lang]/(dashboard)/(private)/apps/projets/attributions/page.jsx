@@ -1,19 +1,30 @@
 // Component Imports
-import { Card, CardContent, Typography } from '@mui/material'
+import AttributionsList from '@views/apps/attributions/list'
 
-const ProjetsAttributionsPage = () => {
-  return (
-    <Card>
-      <CardContent>
-        <Typography variant="h4" className="mb-4">
-          Attributions de projets
-        </Typography>
-        <Typography color="text.secondary">
-          Cette page sera développée pour gérer les attributions de projets aux utilisateurs.
-        </Typography>
-      </CardContent>
-    </Card>
-  )
+const getProjectsData = async () => {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/projects`, {
+      cache: 'no-store' // Assure que les données sont toujours fraîches
+    })
+    
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération des projets')
+    }
+    
+    const projectData = await response.json()
+    return { projectData }
+  } catch (error) {
+    console.error('Erreur lors du chargement des projets:', error)
+    // Retourner des données vides en cas d'erreur
+    return { projectData: [] }
+  }
 }
 
-export default ProjetsAttributionsPage
+const AttributionsPage = async () => {
+  // Vars
+  const data = await getProjectsData()
+
+  return <AttributionsList projectData={data?.projectData} />
+}
+
+export default AttributionsPage

@@ -68,3 +68,77 @@ export async function GET() {
     )
   }
 }
+
+export async function POST(request) {
+  try {
+    const data = await request.json()
+    
+    // Créer les données étendues en JSON pour les champs non supportés directement
+    const extendedData = {
+      commissionAgence: data.commissionAgence ? parseFloat(data.commissionAgence) : 0,
+      description: data.description || '',
+      adresseInstallation: data.adresseInstallation || '',
+      contactSurPlace: data.contactSurPlace || null,
+      contactClient: data.contactClient || null,
+      timeline: data.timeline || null
+    }
+    
+    // Créer le projet avec les données de base
+    const newProject = await prisma.project.create({
+      data: {
+        numeroORE: data.numeroORE,
+        client: data.nomClient,
+        concerne: data.concerne || '',
+        dateDemande: new Date(data.dateDemande),
+        delai: data.dateInstallation ? new Date(data.dateInstallation) : new Date(),
+        imperatif: false,
+        status: data.status || 'nouveau',
+        etape: 'maquette',
+        prixAchat: 0,
+        marge: 0,
+        prixVente: 0,
+        importance: data.importance || 1,
+        tags: data.tags && data.tags.length > 0 ? JSON.stringify(data.tags) : null,
+        chiffrageData: JSON.stringify(extendedData),
+        // Relations
+        vendeurId: data.vendeur || null,
+        chiffreurId: data.chiffreur || null,
+        chefProjetId: data.chefDeProjet || null
+      },
+      include: {
+        vendeur: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            initials: true,
+            color: true
+          }
+        },
+        chiffreur: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            initials: true,
+            color: true
+          }
+        },
+        chefProjet: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            initials: true,
+            color: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(newProject)
+  } catch (error) {
+    console.error('Erreur lors de la création du projet:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
