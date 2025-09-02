@@ -110,73 +110,51 @@ const EnhancedFormulaField = ({
   const getFieldStyles = () => {
     let styles = { ...sx };
     
-    // Styles de base pour tous les champs
+    // Styles de base identiques au reste du tableau
     const baseStyles = {
       '& .MuiInputBase-root': {
         fontSize: '0.875rem',
-        backgroundColor: 'white',
+        backgroundColor: 'transparent', // Identique aux autres champs du tableau
       },
     };
     
     if (isHighlighted && isSelectingFields) {
-      // Champ mis en surbrillance pour la sélection
+      // Champ sélectionnable - juste un filet jaune
       styles = {
         ...styles,
         ...baseStyles,
         '& .MuiOutlinedInput-root': {
-          backgroundColor: '#e3f2fd',
           '& fieldset': {
-            borderColor: '#2196f3',
+            borderColor: '#ffc107', // Jaune pour la sélection
             borderWidth: '2px',
+            boxShadow: '0 0 0 1px #ffc107',
           },
           '&:hover fieldset': {
-            borderColor: '#1976d2',
-            borderWidth: '3px',
-          },
-        },
-        cursor: 'pointer',
-        transform: 'scale(1.02)',
-        boxShadow: '0 2px 8px rgba(33, 150, 243, 0.4)',
-      };
-    } else if (isSelectingFields) {
-      // Mode sélection mais pas surligné
-      styles = {
-        ...styles,
-        ...baseStyles,
-        '& .MuiOutlinedInput-root': {
-          backgroundColor: '#fff8e1',
-          '& fieldset': {
-            borderColor: '#ffb74d',
-          },
-          '&:hover': {
-            backgroundColor: '#ffecb3',
-            '& fieldset': {
-              borderColor: '#ff9800',
-              borderWidth: '2px',
-            },
+            borderColor: '#ff9800',
+            borderWidth: '2px',
+            boxShadow: '0 0 0 2px #ff9800',
           },
         },
         cursor: 'pointer',
       };
     } else if (formula) {
-      // Champ avec formule
+      // Champ avec formule - style discret
       styles = {
         ...styles,
         ...baseStyles,
         '& .MuiInputBase-root': {
           ...baseStyles['& .MuiInputBase-root'],
           fontFamily: showResult ? 'inherit' : 'monospace',
-          backgroundColor: showResult ? '#f1f8e9' : '#fce4ec',
-          color: showResult ? '#2e7d32' : '#7b1fa2',
+          color: formula ? '#666' : 'inherit',
         },
         '& .MuiOutlinedInput-root': {
           '& fieldset': {
-            borderColor: showResult ? '#66bb6a' : '#ba68c8',
+            borderColor: formula ? '#ddd' : 'inherit',
           },
         },
       };
     } else {
-      // Champ normal
+      // Champ normal - style par défaut du tableau
       styles = {
         ...styles,
         ...baseStyles,
@@ -238,12 +216,12 @@ const EnhancedFormulaField = ({
         <Box
           sx={{
             position: 'absolute',
-            top: -2,
-            left: -2,
+            top: -1,
+            left: -1,
             width: 0,
             height: 0,
-            borderLeft: '6px solid #ff9800',
-            borderBottom: '6px solid transparent',
+            borderLeft: '8px solid #ffc107',
+            borderBottom: '8px solid transparent',
             pointerEvents: 'none',
             zIndex: 1,
           }}

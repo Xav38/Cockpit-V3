@@ -1117,15 +1117,18 @@ const NewProjectForm = () => {
 
   // Fonctions pour le mode de sélection des champs
   const toggleFieldSelection = () => {
-    setIsSelectingFields(!isSelectingFields)
-    if (!isSelectingFields) {
-      // Créer une liste simple des champs disponibles
+    const newSelectingState = !isSelectingFields
+    setIsSelectingFields(newSelectingState)
+    
+    if (newSelectingState) {
+      // Activer le mode sélection : surligner TOUS les champs disponibles automatiquement
       const fields = []
       
-      // Ajouter les champs de ligne pour toutes les positions
+      // Ajouter les champs de ligne pour chaque position
       projectData.positions.forEach((position, posIndex) => {
         if (position.lignesChiffrage) {
           position.lignesChiffrage.forEach((ligne, ligneIndex) => {
+            // Utiliser l'index de ligne local à chaque position
             fields.push(`@L${ligneIndex + 1}.prixUnitAchat`)
             fields.push(`@L${ligneIndex + 1}.quantite`)
             fields.push(`@L${ligneIndex + 1}.totalAchat`)
@@ -1136,10 +1139,17 @@ const NewProjectForm = () => {
         fields.push(`@totalPosition`)
       })
       
-      console.log('Available fields:', fields)
+      console.log('Mode sélection activé - champs disponibles:', fields)
       setHighlightedFields(fields)
+      
+      // Garder la sidebar ouverte pour l'assistance
+      if (!formulaSidebarOpen) {
+        setFormulaSidebarOpen(true)
+      }
     } else {
+      // Désactiver le mode sélection
       setHighlightedFields([])
+      console.log('Mode sélection désactivé')
     }
   }
 
