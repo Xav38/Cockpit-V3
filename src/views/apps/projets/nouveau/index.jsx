@@ -1791,9 +1791,16 @@ const NewProjectForm = () => {
   }
 
   return (
-    <div className="flex">
+    <Box sx={{ display: 'flex' }}>
       {/* Contenu principal */}
-      <div className="flex-1 p-6">
+      <Box 
+        sx={{ 
+          flexGrow: 1, 
+          p: 3,
+          marginRight: formulaSidebarOpen ? '400px' : 0,
+          transition: 'margin-right 0.3s ease-in-out'
+        }}
+      >
         {/* Breadcrumb et header */}
         <Box sx={{ mb: 4 }}>
           <Breadcrumbs>
@@ -2802,8 +2809,9 @@ const NewProjectForm = () => {
             </CardContent>
           </Card>
         )}
-      </div>
 
+      </Box>
+      
       {/* Formula Sidebar */}
       <FormulaSidebar
         open={formulaSidebarOpen}
@@ -2823,7 +2831,7 @@ const NewProjectForm = () => {
         onToggleFieldSelection={toggleFieldSelection}
         highlightedFields={highlightedFields}
       />
-    </div>
+    </Box>
   )
 }
 

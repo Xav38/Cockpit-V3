@@ -117,7 +117,10 @@ const FormulaSidebar = ({
       anchor="right"
       open={open}
       onClose={onClose}
+      variant="persistent"
       sx={{
+        width: open ? 400 : 0,
+        flexShrink: 0,
         '& .MuiDrawer-paper': {
           width: 400,
           boxSizing: 'border-box'
@@ -171,39 +174,59 @@ const FormulaSidebar = ({
           </Alert>
         )}
 
-        {/* Current Formula */}
-        {currentFormula && (
-          <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.50' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-              Formule actuelle :
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              maxRows={4}
-              value={currentFormula}
-              onChange={(e) => onFormulaChange && onFormulaChange(e.target.value)}
-              sx={{ 
-                mb: 1,
-                '& .MuiInputBase-input': {
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem'
-                }
-              }}
-              placeholder="Saisissez votre formule ici..."
-            />
+        {/* Current Formula - Always visible when sidebar is open */}
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'primary.50' }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+            Formule actuelle :
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            maxRows={4}
+            value={currentFormula || ''}
+            onChange={(e) => onFormulaChange && onFormulaChange(e.target.value)}
+            sx={{ 
+              mb: 1,
+              '& .MuiInputBase-input': {
+                fontFamily: 'monospace',
+                fontSize: '0.875rem'
+              }
+            }}
+            placeholder="Saisissez votre formule ici..."
+          />
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <Button
               size="small"
               variant="outlined"
               onClick={handleTestFormula}
-              sx={{ mt: 1 }}
               startIcon={<i className="ri-play-line" />}
             >
-              Tester la formule
+              Tester
             </Button>
-          </Paper>
-        )}
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => {
+                // Valider la formule et fermer la sidebar
+                onClose()
+              }}
+              startIcon={<i className="ri-check-line" />}
+              color="primary"
+            >
+              Valider
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              onClick={onClose}
+              startIcon={<i className="ri-close-line" />}
+              color="error"
+            >
+              Annuler
+            </Button>
+          </Box>
+        </Paper>
 
         {/* Test Result */}
         {testResult && (

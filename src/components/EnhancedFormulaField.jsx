@@ -1,6 +1,32 @@
 import React, { useState, useRef } from 'react';
 import { TextField, Typography, Box, IconButton } from '@mui/material';
 
+// Évaluateur simple de formules mathématiques
+const evaluateSimpleFormula = (expression) => {
+  try {
+    // Nettoyer l'expression
+    const cleaned = expression.replace(/\s+/g, '');
+    
+    // Vérifier que l'expression ne contient que des caractères autorisés
+    const allowedPattern = /^[0-9+\-*/().\s]*$/;
+    if (!allowedPattern.test(cleaned)) {
+      return null;
+    }
+
+    // Utiliser Function constructor pour une évaluation sûre
+    const func = new Function('return ' + cleaned);
+    const result = func();
+    
+    if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
+      return null;
+    }
+    
+    return result;
+  } catch (error) {
+    return null;
+  }
+};
+
 const EnhancedFormulaField = ({
   value,
   formula,
@@ -23,20 +49,15 @@ const EnhancedFormulaField = ({
   const [isEditingFormula, setIsEditingFormula] = useState(false);
   const inputRef = useRef(null);
 
-  // Valeur affichée : formule par défaut, résultat si showResult activé, ou édition
+  // Valeur affichée : résultat par défaut, formule en édition
   const getDisplayValue = () => {
     if (isEditingFormula) {
-      return formula ? `=${formula}` : '';
+      return formula ? `=${formula}` : value || '';
     }
     
     if (formula) {
-      if (showResult) {
-        // Afficher le résultat calculé
-        return parseFloat(value || 0).toFixed(2);
-      } else {
-        // Afficher la formule avec = par défaut
-        return `=${formula}`;
-      }
+      // Afficher le résultat calculé par défaut
+      return parseFloat(value || 0).toFixed(2);
     }
     
     return value || '';
@@ -45,8 +66,9 @@ const EnhancedFormulaField = ({
   const handleDoubleClick = () => {
     if (!disabled) {
       if (formula) {
-        // Basculer entre formule et résultat
-        setShowResult(!showResult);
+        // Passer en mode édition de formule pour voir/modifier
+        setIsEditingFormula(true);
+        setTimeout(() => inputRef.current?.focus(), 0);
       } else {
         // Pas de formule, permettre l'édition normale
         setIsEditingFormula(true);
@@ -62,7 +84,29 @@ const EnhancedFormulaField = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === 'Escape') {
+    if (e.key === 'Enter') {
+      // Appuyer sur Entrée valide la formule et sort du mode édition
+      const inputValue = e.target.value;
+      
+      // Si la valeur commence par =, traiter comme formule
+      if (inputValue.startsWith('=')) {
+        const formulaExpression = inputValue.slice(1);
+        const result = evaluateSimpleFormula(formulaExpression);
+        
+        if (result !== null) {
+          // Formule valide - sauvegarder la formule et le résultat
+          onFormulaChange && onFormulaChange(formulaExpression);
+          onValueChange && onValueChange(result);
+        } else {
+          // Formule invalide - garder juste la formule
+          onFormulaChange && onFormulaChange(formulaExpression);
+        }
+      }
+      
+      setIsEditingFormula(false);
+      inputRef.current?.blur();
+    } else if (e.key === 'Escape') {
+      // Échap annule les modifications
       setIsEditingFormula(false);
       inputRef.current?.blur();
     }
@@ -144,8 +188,9 @@ const EnhancedFormulaField = ({
         ...baseStyles,
         '& .MuiInputBase-root': {
           ...baseStyles['& .MuiInputBase-root'],
-          fontFamily: showResult ? 'inherit' : 'monospace',
-          color: formula ? '#666' : 'inherit',
+          fontFamily: isEditingFormula ? 'monospace' : 'inherit',
+          color: formula && !isEditingFormula ? '#2e7d32' : 'inherit', // Vert pour les résultats de formule
+          fontWeight: formula && !isEditingFormula ? 600 : 'inherit',
         },
         '& .MuiOutlinedInput-root': {
           '& fieldset': {
@@ -228,7 +273,7 @@ const EnhancedFormulaField = ({
         />
       )}
       
-      {/* Affichage du résultat calculé ou formule selon le mode */}
+      {/* Indicateur de formule */}
       {formula && !isEditingFormula && (
         <Typography 
           variant="caption" 
@@ -237,18 +282,18 @@ const EnhancedFormulaField = ({
             top: -8, 
             right: endAdornment ? 80 : 8, 
             fontSize: '0.7rem', 
-            color: showResult ? 'success.main' : 'secondary.main',
+            color: 'secondary.main',
             bgcolor: 'background.paper',
             px: 0.5,
             borderRadius: 0.5,
             border: '1px solid',
-            borderColor: showResult ? 'success.main' : 'secondary.main',
+            borderColor: 'secondary.main',
             cursor: 'pointer',
           }}
-          title={showResult ? `Formule: ${formula}` : `Résultat: ${parseFloat(value || 0).toFixed(2)}`}
-          onClick={() => setShowResult(!showResult)}
+          title={`Formule: =${formula}`}
+          onClick={handleDoubleClick}
         >
-          {showResult ? 'f(x)' : `= ${parseFloat(value || 0).toFixed(2)}`}
+          f(x)
         </Typography>
       )}
     </Box>
