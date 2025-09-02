@@ -312,16 +312,14 @@ const FormulaSidebar = ({
                                 '&:hover': { bgcolor: 'primary.50' }
                               }}
                             >
-                              <ListItemText 
-                                primary={
-                                  <Typography variant="body2">{subField.label}</Typography>
-                                }
-                                secondary={
-                                  <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                                    {subField.id}
-                                  </Typography>
-                                }
-                              />
+                              <Box sx={{ flexGrow: 1 }}>
+                                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                                  {subField.label}
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                                  {subField.id}
+                                </Typography>
+                              </Box>
                             </ListItemButton>
                           </ListItem>
                         ))}
@@ -357,19 +355,17 @@ const FormulaSidebar = ({
                         '&:hover': { bgcolor: 'primary.50' }
                       }}
                     >
-                      <ListItemText 
-                        primary={func.label}
-                        secondary={
-                          <Box>
-                            <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                              {func.id}
-                            </Typography>
-                            <Typography variant="caption" sx={{ display: 'block' }}>
-                              {func.description}
-                            </Typography>
-                          </Box>
-                        }
-                      />
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          {func.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary', display: 'block' }}>
+                          {func.id}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                          {func.description}
+                        </Typography>
+                      </Box>
                     </ListItemButton>
                   </ListItem>
                 ))}

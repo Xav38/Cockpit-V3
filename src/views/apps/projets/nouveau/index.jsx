@@ -1044,6 +1044,13 @@ const NewProjectForm = () => {
     setActiveFormulaField(fieldInfo)
     setCurrentFormula(fieldInfo.currentValue || '')
     setFormulaSidebarOpen(true)
+    
+    // Si on ouvre la sidebar pour un champ, désactiver le mode sélection général
+    if (isSelectingFields && !activeFormulaField) {
+      console.log('Ouverture sidebar avec champ spécifique - désactivation mode sélection général')
+      setIsSelectingFields(false)
+      setHighlightedFields([])
+    }
   }
 
   const handleInsertField = (fieldId) => {
@@ -1173,6 +1180,11 @@ const NewProjectForm = () => {
       console.log('Setting new formula:', newFormula)
       setCurrentFormula(newFormula)
       handleFormulaChange(newFormula)
+      
+      // NE PAS fermer la sidebar lors de la sélection
+      // Garder le mode sélection actif pour permettre d'ajouter d'autres champs
+    } else if (isSelectingFields) {
+      console.log('Mode sélection actif mais pas de champ actif pour recevoir la sélection')
     }
   }
 
@@ -2795,7 +2807,12 @@ const NewProjectForm = () => {
       {/* Formula Sidebar */}
       <FormulaSidebar
         open={formulaSidebarOpen}
-        onClose={() => setFormulaSidebarOpen(false)}
+        onClose={() => {
+          setFormulaSidebarOpen(false)
+          // Désactiver la sélection quand la sidebar se ferme
+          setIsSelectingFields(false)
+          setHighlightedFields([])
+        }}
         onInsertField={handleInsertField}
         currentFormula={currentFormula}
         onFormulaChange={handleFormulaChange}
