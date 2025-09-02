@@ -258,17 +258,17 @@ const FormulaSidebar = ({
                             '&:hover': { bgcolor: 'primary.50' }
                           }}
                         >
-                          <ListItemText 
-                            primary={field.label}
-                            secondary={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                                  {field.id}
-                                </Typography>
-                                <Chip label={field.value} size="small" variant="outlined" />
-                              </Box>
-                            }
-                          />
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              {field.label}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                                {field.id}
+                              </Typography>
+                              <Chip label={field.value} size="small" variant="outlined" />
+                            </Box>
+                          </Box>
                         </ListItemButton>
                       </ListItem>
                     ))}
