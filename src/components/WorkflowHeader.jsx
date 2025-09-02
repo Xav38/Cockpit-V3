@@ -16,7 +16,9 @@ import { styled } from '@mui/material/styles'
 // Custom StepConnector
 const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${StepConnector.alternativeLabel}`]: {
-    top: 22,
+    top: 25, // Centre des bulles de 50px
+    left: 'calc(-50% + 20px)',
+    right: 'calc(50% + 20px)',
   },
   [`&.${StepConnector.active}`]: {
     [`& .${StepConnector.line}`]: {
@@ -33,6 +35,7 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
     border: 0,
     backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#eaeaf0',
     borderRadius: 1,
+    margin: '0 8px', // Marge pour ne pas toucher les bulles
   },
 }))
 
