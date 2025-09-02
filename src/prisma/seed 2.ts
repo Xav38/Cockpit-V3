@@ -35,7 +35,6 @@ async function main() {
       name: 'Jean Dupont',
       initials: 'JD',
       color: '#666CFF', // Primary Main
-      roleId: roleVendeur.id
     }
   })
 
@@ -45,7 +44,6 @@ async function main() {
       name: 'Pierre Durand',
       initials: 'PD',
       color: '#72E128', // Success Main
-      roleId: roleVendeur.id
     }
   })
 
@@ -55,7 +53,6 @@ async function main() {
       name: 'Marie Martin',
       initials: 'MM',
       color: '#FDB528', // Warning Main
-      roleId: roleChiffreur.id
     }
   })
 
@@ -65,7 +62,6 @@ async function main() {
       name: 'Luc Moreau',
       initials: 'LM',
       color: '#26C6F9', // Info Main
-      roleId: roleChiffreur.id
     }
   })
 
@@ -75,6 +71,41 @@ async function main() {
       name: 'Paul Mercier',
       initials: 'PM',
       color: '#FF4D49', // Error Main
+    }
+  })
+
+  // Assigner les rôles aux utilisateurs
+  await prisma.userRole.create({
+    data: {
+      userId: vendeur1.id,
+      roleId: roleVendeur.id
+    }
+  })
+
+  await prisma.userRole.create({
+    data: {
+      userId: vendeur2.id,
+      roleId: roleVendeur.id
+    }
+  })
+
+  await prisma.userRole.create({
+    data: {
+      userId: chiffreur1.id,
+      roleId: roleChiffreur.id
+    }
+  })
+
+  await prisma.userRole.create({
+    data: {
+      userId: chiffreur2.id,
+      roleId: roleChiffreur.id
+    }
+  })
+
+  await prisma.userRole.create({
+    data: {
+      userId: chef1.id,
       roleId: roleChefProjet.id
     }
   })

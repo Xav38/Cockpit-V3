@@ -5,10 +5,10 @@ import { prisma } from '../../../../../lib/prisma'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { type: string; id: string } }
+  { params }: { params: Promise<{ type: string; id: string }> }
 ) {
   try {
-    const { type, id } = params
+    const { type, id } = await params
 
     if (!['image', 'document'].includes(type)) {
       return NextResponse.json({ error: 'Invalid type. Must be "image" or "document"' }, { status: 400 })
@@ -81,10 +81,10 @@ export async function DELETE(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { type: string; id: string } }
+  { params }: { params: Promise<{ type: string; id: string }> }
 ) {
   try {
-    const { type, id } = params
+    const { type, id } = await params
 
     if (!['image', 'document'].includes(type)) {
       return NextResponse.json({ error: 'Invalid type. Must be "image" or "document"' }, { status: 400 })

@@ -27,6 +27,12 @@ import {
 
 // Component Imports
 import WorkflowHeader from '@/components/WorkflowHeader'
+import FormulaSidebar from '@/components/FormulaSidebar'
+import { FormulaField } from '@/components/FormulaField'
+import EnhancedFormulaField from '@/components/EnhancedFormulaField'
+import { FormulaEngine, createAvailableFields } from '@/utils/formulaEngine'
+import { FormulaContext, FieldValue } from '@/types/formula'
+import { createSimpleFieldValue, createFormulaFieldValue, getNumericValue } from '@/utils/fieldValueHelpers'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -153,6 +159,12 @@ const NewProjectForm = () => {
   const [loading, setLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [imagesInitialized, setImagesInitialized] = useState(false)
+  const [formulaSidebarOpen, setFormulaSidebarOpen] = useState(false)
+  const [activeFormulaField, setActiveFormulaField] = useState(null)
+  const [currentFormula, setCurrentFormula] = useState('')
+  const [isSelectingFields, setIsSelectingFields] = useState(false)
+  const [highlightedFields, setHighlightedFields] = useState([])
+  const [formulaEngine, setFormulaEngine] = useState(null)
   const [idCounter, setIdCounter] = useState(1)
   const [options, setOptions] = useState({
     statuts: [],
@@ -1027,6 +1039,138 @@ const NewProjectForm = () => {
     }
   }
 
+  // Formula sidebar functions
+  const openFormulaSidebar = (fieldInfo) => {
+    setActiveFormulaField(fieldInfo)
+    setCurrentFormula(fieldInfo.currentValue || '')
+    setFormulaSidebarOpen(true)
+  }
+
+  const handleInsertField = (fieldId) => {
+    if (activeFormulaField) {
+      const newFormula = currentFormula ? `${currentFormula} ${fieldId}` : fieldId
+      setCurrentFormula(newFormula)
+      
+      // Update the actual field value
+      if (activeFormulaField.type === 'quoteLine') {
+        updateQuoteLine(
+          activeFormulaField.positionId,
+          activeFormulaField.lineId,
+          activeFormulaField.field,
+          newFormula
+        )
+      }
+    }
+  }
+
+  const handleFormulaChange = (newFormula) => {
+    setCurrentFormula(newFormula)
+    if (activeFormulaField) {
+      if (activeFormulaField.type === 'quoteLine') {
+        updateQuoteLine(
+          activeFormulaField.positionId,
+          activeFormulaField.lineId,
+          activeFormulaField.field,
+          newFormula
+        )
+      }
+    }
+  }
+
+  // Initialiser et mettre à jour le moteur de formules
+  const updateFormulaEngine = () => {
+    // Créer le contexte pour le moteur de formules
+    const context = {
+      lignes: new Map(),
+      positions: new Map(),
+      global: {
+        commissionAgence: projectData.commissionAgence || 0,
+        projectManagement: projectData.projectManagementPercentage || 10
+      }
+    }
+
+    // Ajouter les positions et lignes au contexte
+    if (projectData.positions) {
+      projectData.positions.forEach((position, posIndex) => {
+        const positionId = `pos${posIndex + 1}`
+        context.positions.set(positionId, {
+          quantite: position.quantite || 1,
+          totalPosition: 0 // Calculé
+        })
+
+        if (position.lignesChiffrage) {
+          position.lignesChiffrage.forEach((ligne, ligneIndex) => {
+            const ligneId = `${positionId}_L${ligneIndex + 1}`
+            context.lignes.set(ligneId, {
+              prixUnitAchat: ligne.prixUnitAchatValue || 0,
+              quantite: ligne.quantiteValue || 0,
+              totalAchat: ligne.totalAchat || 0
+            })
+          })
+        }
+      })
+    }
+
+    const engine = new FormulaEngine(context)
+    setFormulaEngine(engine)
+  }
+
+  // Fonctions pour le mode de sélection des champs
+  const toggleFieldSelection = () => {
+    setIsSelectingFields(!isSelectingFields)
+    if (!isSelectingFields) {
+      // Créer une liste simple des champs disponibles
+      const fields = []
+      
+      // Ajouter les champs de ligne pour toutes les positions
+      projectData.positions.forEach((position, posIndex) => {
+        if (position.lignesChiffrage) {
+          position.lignesChiffrage.forEach((ligne, ligneIndex) => {
+            fields.push(`@L${ligneIndex + 1}.prixUnitAchat`)
+            fields.push(`@L${ligneIndex + 1}.quantite`)
+            fields.push(`@L${ligneIndex + 1}.totalAchat`)
+          })
+        }
+        // Ajouter les champs de position
+        fields.push(`@quantitePosition`)
+        fields.push(`@totalPosition`)
+      })
+      
+      console.log('Available fields:', fields)
+      setHighlightedFields(fields)
+    } else {
+      setHighlightedFields([])
+    }
+  }
+
+  const handleFieldClick = (fieldPath) => {
+    console.log('Main handleFieldClick called:', { 
+      fieldPath, 
+      isSelectingFields, 
+      activeFormulaField,
+      currentFormula 
+    })
+    
+    if (isSelectingFields && activeFormulaField) {
+      let newFormula
+      if (currentFormula) {
+        // Si il y a déjà une formule, ajouter le champ
+        newFormula = `${currentFormula} + ${fieldPath}`
+      } else {
+        // Nouvelle formule
+        newFormula = fieldPath
+      }
+      console.log('Setting new formula:', newFormula)
+      setCurrentFormula(newFormula)
+      handleFormulaChange(newFormula)
+    }
+  }
+
+  // Mettre à jour le contexte du formulaEngine quand les données changent
+  useEffect(() => {
+    updateFormulaEngine()
+  }, [projectData])
+
   const getStatusColor = (status) => {
     const colors = {
       nouveau: 'info',
@@ -1456,110 +1600,56 @@ const NewProjectForm = () => {
         </TableCell>
 
         <TableCell sx={{ minWidth: 140 }}>
-          <Box sx={{ position: 'relative' }}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="0.00 ou formule (ex: L1.totalAchat*0.1)"
-              value={line.prixUnitAchatFormula || line.prixUnitAchat || ''}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value === '' || !isNaN(parseFloat(value))) {
-                  // Si c'est un nombre simple
-                  onUpdateLine(position.id, line.id, 'prixUnitAchat', parseFloat(value) || 0)
-                } else {
-                  // Si c'est une formule
-                  onUpdateLine(position.id, line.id, 'prixUnitAchatFormula', value)
-                }
-              }}
-              disabled={isSpecialLine}
-              InputProps={{
-                endAdornment: (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {line.prixUnitAchatFormula && (
-                      <Tooltip title="Formule active">
-                        <i className="ri-function-line" style={{ fontSize: '14px', color: 'orange' }} />
-                      </Tooltip>
-                    )}
-                    <Typography variant="caption" sx={{ ml: 1 }}>CHF</Typography>
-                  </Box>
-                )
-              }}
-              sx={{ 
-                '& .MuiInputBase-root': { 
-                  fontSize: '0.875rem',
-                  borderColor: line.prixUnitAchatFormula ? 'warning.main' : 'inherit'
-                } 
-              }}
-            />
-            {line.prixUnitAchatFormula && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  position: 'absolute', 
-                  top: -8, 
-                  right: 8, 
-                  fontSize: '0.7rem', 
-                  color: 'warning.main',
-                  bgcolor: 'background.paper',
-                  px: 0.5
-                }}
-              >
-                = {line.prixUnitAchat?.toFixed(2)} CHF
-              </Typography>
-            )}
-          </Box>
+          <EnhancedFormulaField
+            value={line.prixUnitAchat}
+            formula={line.prixUnitAchatFormula}
+            onValueChange={(value) => {
+              onUpdateLine(position.id, line.id, 'prixUnitAchat', parseFloat(value) || 0)
+            }}
+            onFormulaChange={(formula) => {
+              onUpdateLine(position.id, line.id, 'prixUnitAchatFormula', formula)
+            }}
+            onOpenFormula={() => openFormulaSidebar({
+              type: 'quoteLine',
+              positionId: position.id,
+              lineId: line.id,
+              field: 'prixUnitAchatFormula',
+              currentValue: line.prixUnitAchatFormula || line.prixUnitAchat || ''
+            })}
+            placeholder="0.00 ou formule (ex: L1.totalAchat*0.1)"
+            disabled={isSpecialLine}
+            isSelectingFields={isSelectingFields}
+            fieldPath={`@L${position.lignesChiffrage.findIndex(l => l.id === line.id) + 1}.prixUnitAchat`}
+            onFieldClick={handleFieldClick}
+            isHighlighted={highlightedFields.includes(`@L${position.lignesChiffrage.findIndex(l => l.id === line.id) + 1}.prixUnitAchat`)}
+            endAdornment={<Typography variant="caption" sx={{ ml: 1 }}>CHF</Typography>}
+          />
         </TableCell>
 
         <TableCell sx={{ minWidth: 120 }}>
-          <Box sx={{ position: 'relative' }}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="1 ou formule (ex: quantitePosition*2)"
-              value={line.quantiteFormula || line.quantite || ''}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value === '' || !isNaN(parseFloat(value))) {
-                  // Si c'est un nombre simple
-                  onUpdateLine(position.id, line.id, 'quantite', parseFloat(value) || 0)
-                } else {
-                  // Si c'est une formule
-                  onUpdateLine(position.id, line.id, 'quantiteFormula', value)
-                }
-              }}
-              disabled={isSpecialLine}
-              InputProps={{
-                endAdornment: line.quantiteFormula && (
-                  <Tooltip title="Formule active">
-                    <i className="ri-function-line" style={{ fontSize: '14px', color: 'orange' }} />
-                  </Tooltip>
-                )
-              }}
-              sx={{ 
-                '& .MuiInputBase-root': { 
-                  fontSize: '0.875rem',
-                  borderColor: line.quantiteFormula ? 'warning.main' : 'inherit'
-                } 
-              }}
-            />
-            {line.quantiteFormula && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  position: 'absolute', 
-                  top: -8, 
-                  right: 8, 
-                  fontSize: '0.7rem', 
-                  color: 'warning.main',
-                  bgcolor: 'background.paper',
-                  px: 0.5
-                }}
-              >
-                = {line.quantite?.toFixed(2)}
-              </Typography>
-            )}
-          </Box>
+          <EnhancedFormulaField
+            value={line.quantite}
+            formula={line.quantiteFormula}
+            onValueChange={(value) => {
+              onUpdateLine(position.id, line.id, 'quantite', parseFloat(value) || 0)
+            }}
+            onFormulaChange={(formula) => {
+              onUpdateLine(position.id, line.id, 'quantiteFormula', formula)
+            }}
+            onOpenFormula={() => openFormulaSidebar({
+              type: 'quoteLine',
+              positionId: position.id,
+              lineId: line.id,
+              field: 'quantiteFormula',
+              currentValue: line.quantiteFormula || line.quantite || ''
+            })}
+            placeholder="1 ou formule (ex: quantitePosition*2)"
+            disabled={isSpecialLine}
+            isSelectingFields={isSelectingFields}
+            fieldPath={`@L${position.lignesChiffrage.findIndex(l => l.id === line.id) + 1}.quantite`}
+            onFieldClick={handleFieldClick}
+            isHighlighted={highlightedFields.includes(`@L${position.lignesChiffrage.findIndex(l => l.id === line.id) + 1}.quantite`)}
+          />
         </TableCell>
 
         <TableCell sx={{ minWidth: 80 }}>
@@ -2691,6 +2781,21 @@ const NewProjectForm = () => {
           </Card>
         )}
       </div>
+
+      {/* Formula Sidebar */}
+      <FormulaSidebar
+        open={formulaSidebarOpen}
+        onClose={() => setFormulaSidebarOpen(false)}
+        onInsertField={handleInsertField}
+        currentFormula={currentFormula}
+        onFormulaChange={handleFormulaChange}
+        projectData={projectData}
+        currentPositionId={activeFormulaField?.positionId}
+        currentLineId={activeFormulaField?.lineId}
+        isSelectingFields={isSelectingFields}
+        onToggleFieldSelection={toggleFieldSelection}
+        highlightedFields={highlightedFields}
+      />
     </div>
   )
 }
