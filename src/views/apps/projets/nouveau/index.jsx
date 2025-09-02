@@ -122,8 +122,6 @@ const NewProjectForm = () => {
         titrePosition: '',
         quantite: 1,
         projectManagementPercentage: 10,
-        showImages: false,
-        showDocuments: false,
         showChiffrage: true,
         showProduction: false,
         images: [],
@@ -154,6 +152,7 @@ const NewProjectForm = () => {
 
   const [loading, setLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const [imagesInitialized, setImagesInitialized] = useState(false)
   const [idCounter, setIdCounter] = useState(1)
   const [options, setOptions] = useState({
     statuts: [],
@@ -568,8 +567,6 @@ const NewProjectForm = () => {
       titrePosition: '',
       quantite: 1,
       projectManagementPercentage: 10,
-      showImages: false,
-      showDocuments: false,
       showChiffrage: true,
       showProduction: false,
       images: [],
@@ -955,15 +952,70 @@ const NewProjectForm = () => {
   const handleSave = async () => {
     setLoading(true)
     try {
+      // First, save the project to get real position IDs
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(projectData)
+        body: JSON.stringify({
+          ...projectData,
+          // Remove temporary files from the save data
+          positions: projectData.positions.map(pos => ({
+            ...pos,
+            images: pos.images?.filter(img => !img.isTemporary) || [],
+            documents: pos.documents?.filter(doc => !doc.isTemporary) || []
+          }))
+        })
       })
 
       if (response.ok) {
+        const savedProject = await response.json()
+        
+        // Now upload temporary files to the saved positions
+        const uploadHelpers = await import('../../../../utils/uploadHelpers')
+        
+        for (let i = 0; i < projectData.positions.length; i++) {
+          const position = projectData.positions[i]
+          const savedPosition = savedProject.positions[i]
+          
+          // Upload temporary images
+          const tempImages = position.images?.filter(img => img.isTemporary) || []
+          if (tempImages.length > 0) {
+            const imageFiles = tempImages.map(img => img.file)
+            try {
+              await uploadHelpers.uploadImages(savedPosition.id, imageFiles)
+            } catch (error) {
+              console.warn('Erreur upload images pour position', savedPosition.numero, ':', error.message)
+            }
+          }
+          
+          // Upload temporary documents
+          const tempDocuments = position.documents?.filter(doc => doc.isTemporary) || []
+          if (tempDocuments.length > 0) {
+            const documentFiles = tempDocuments.map(doc => doc.file)
+            try {
+              await uploadHelpers.uploadDocuments(savedPosition.id, documentFiles)
+            } catch (error) {
+              console.warn('Erreur upload documents pour position', savedPosition.numero, ':', error.message)
+            }
+          }
+        }
+        
+        // Clean up temporary URLs
+        projectData.positions.forEach(position => {
+          position.images?.forEach(img => {
+            if (img.url && img.url.startsWith('blob:')) {
+              URL.revokeObjectURL(img.url)
+            }
+          })
+          position.documents?.forEach(doc => {
+            if (doc.url && doc.url.startsWith('blob:')) {
+              URL.revokeObjectURL(doc.url)
+            }
+          })
+        })
+        
         router.push('/apps/projets/list')
       } else {
         console.error('Erreur lors de la sauvegarde')
@@ -987,50 +1039,183 @@ const NewProjectForm = () => {
   }
 
   // File upload functions
-  const handleFileUpload = (event, positionId, fileType) => {
+  const handleFileUpload = async (event, positionId, fileType) => {
     const files = Array.from(event.target.files)
-    const maxSize = fileType === 'images' ? 5 * 1024 * 1024 : 10 * 1024 * 1024 // 5MB for images, 10MB for documents
+    const type = fileType === 'images' ? 'image' : 'document'
     
-    files.forEach(file => {
-      if (file.size > maxSize) {
-        alert(`Le fichier ${file.name} est trop volumineux. Taille maximale: ${fileType === 'images' ? '5MB' : '10MB'}`)
-        return
-      }
+    // Import validation helpers
+    const uploadHelpers = await import('../../../../utils/uploadHelpers')
+    
+    // Validate files first
+    const validationErrors = uploadHelpers.validateFiles(files, type)
+    
+    if (validationErrors.length > 0) {
+      alert('Erreurs de validation:\n' + validationErrors.join('\n'))
+      return
+    }
 
-      // Create file URL for preview
-      const fileUrl = URL.createObjectURL(file)
-      
-      const fileData = {
-        id: generateId(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: fileUrl,
-        file: file // Keep the original file for potential upload
-      }
+    // For new positions (not yet saved), store files temporarily
+    const tempFiles = await Promise.all(files.map(file => {
+      return new Promise((resolve) => {
+        const img = new Image()
+        const url = URL.createObjectURL(file)
+        
+        img.onload = () => {
+          // Calculate proportional dimensions (max 300px width)
+          const maxWidth = 300
+          const aspectRatio = img.width / img.height
+          const width = Math.min(maxWidth, img.width)
+          const height = width / aspectRatio
+          
+          resolve({
+            id: generateId(),
+            name: file.name,
+            originalName: file.name,
+            url: url,
+            size: file.size,
+            type: file.type,
+            file: file,
+            isTemporary: true,
+            width: Math.round(width),
+            height: Math.round(height),
+            originalWidth: img.width,
+            originalHeight: img.height
+          })
+        }
+        
+        img.onerror = () => {
+          resolve({
+            id: generateId(),
+            name: file.name,
+            originalName: file.name,
+            url: url,
+            size: file.size,
+            type: file.type,
+            file: file,
+            isTemporary: true,
+            width: 300,
+            height: 225,
+            originalWidth: 300,
+            originalHeight: 225
+          })
+        }
+        
+        img.src = url
+      })
+    }))
 
-      setProjectData(prev => ({
-        ...prev,
-        positions: prev.positions.map(pos => 
-          pos.id === positionId ? {
-            ...pos,
-            [fileType]: [...(pos[fileType] || []), fileData]
-          } : pos
-        )
-      }))
-    })
-  }
-
-  const removeFile = (positionId, fileType, fileIndex) => {
+    // Update project data with temporary files
     setProjectData(prev => ({
       ...prev,
       positions: prev.positions.map(pos => 
         pos.id === positionId ? {
           ...pos,
-          [fileType]: pos[fileType]?.filter((_, index) => index !== fileIndex) || []
+          [fileType]: [...(pos[fileType] || []), ...tempFiles]
         } : pos
       )
     }))
+
+    console.log(`${tempFiles.length} fichier(s) ajouté(s) temporairement`)
+  }
+
+  // Image resize functions
+  const startImageResize = (event, positionId, imageId) => {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    const startX = event.clientX
+    const startY = event.clientY
+    
+    // Find current image dimensions
+    const position = projectData.positions.find(pos => pos.id === positionId)
+    const image = position?.images?.find(img => img.id === imageId)
+    if (!image) return
+    
+    const startWidth = image.width
+    const startHeight = image.height
+    const aspectRatio = startWidth / startHeight
+    
+    const handleMouseMove = (e) => {
+      const deltaX = e.clientX - startX
+      const newWidth = Math.max(100, Math.min(800, startWidth + deltaX)) // Min 100px, Max 800px
+      const newHeight = newWidth / aspectRatio // Maintain aspect ratio
+      
+      // Update image dimensions
+      setProjectData(prev => ({
+        ...prev,
+        positions: prev.positions.map(pos => 
+          pos.id === positionId ? {
+            ...pos,
+            images: pos.images?.map(img => 
+              img.id === imageId 
+                ? { ...img, width: Math.round(newWidth), height: Math.round(newHeight) }
+                : img
+            ) || []
+          } : pos
+        )
+      }))
+    }
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'default'
+      document.body.style.userSelect = 'auto'
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = 'se-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  const removeFile = async (positionId, fileType, fileIndex) => {
+    const position = projectData.positions.find(pos => pos.id === positionId)
+    const file = position?.[fileType]?.[fileIndex]
+    
+    if (!file) return
+
+    // If it's a temporary file or no ID, just remove from state
+    if (file.isTemporary || !file.id) {
+      // Revoke object URL to free memory
+      if (file.url && file.url.startsWith('blob:')) {
+        URL.revokeObjectURL(file.url)
+      }
+      
+      setProjectData(prev => ({
+        ...prev,
+        positions: prev.positions.map(pos => 
+          pos.id === positionId ? {
+            ...pos,
+            [fileType]: pos[fileType]?.filter((_, index) => index !== fileIndex) || []
+          } : pos
+        )
+      }))
+      return
+    }
+
+    // If it's a real uploaded file, delete from API
+    try {
+      const uploadHelpers = await import('../../../../utils/uploadHelpers')
+      const type = fileType === 'images' ? 'image' : 'document'
+      await uploadHelpers.deleteFile(type, file.id)
+
+      // Remove from project data
+      setProjectData(prev => ({
+        ...prev,
+        positions: prev.positions.map(pos => 
+          pos.id === positionId ? {
+            ...pos,
+            [fileType]: pos[fileType]?.filter((_, index) => index !== fileIndex) || []
+          } : pos
+        )
+      }))
+
+      console.log('Fichier supprimé avec succès')
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+      alert('Erreur lors de la suppression: ' + error.message)
+    }
   }
 
   // Position Summary Component
@@ -2020,38 +2205,6 @@ const NewProjectForm = () => {
                         control={
                           <Switch
                             size="small"
-                            checked={position.showImages}
-                            onChange={(e) => updatePosition(position.id, 'showImages', e.target.checked)}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <i className="ri-image-line" style={{ fontSize: '16px' }} />
-                            <Typography variant="caption">Images</Typography>
-                          </Box>
-                        }
-                        sx={{ mr: 1 }}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            size="small"
-                            checked={position.showDocuments}
-                            onChange={(e) => updatePosition(position.id, 'showDocuments', e.target.checked)}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <i className="ri-file-line" style={{ fontSize: '16px' }} />
-                            <Typography variant="caption">Documents</Typography>
-                          </Box>
-                        }
-                        sx={{ mr: 1 }}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            size="small"
                             checked={position.showProduction}
                             onChange={(e) => updatePosition(position.id, 'showProduction', e.target.checked)}
                           />
@@ -2085,6 +2238,253 @@ const NewProjectForm = () => {
                   sx={{ bgcolor: 'primary.50', '& .MuiCardHeader-title': { width: '100%' } }}
                 />
                 <CardContent>
+                  {/* Section Images */}
+                  <Accordion sx={{ mb: 2 }}>
+                    <AccordionSummary expandIcon={<i className="ri-arrow-down-s-line" />}>
+                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className="ri-image-line" />
+                        Images ({position.images?.length || 0})
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Box 
+                        sx={{ 
+                          border: '2px dashed', 
+                          borderColor: 'primary.main', 
+                          borderRadius: 2, 
+                          p: 3, 
+                          textAlign: 'center',
+                          bgcolor: 'primary.50',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          '&:hover': {
+                            bgcolor: 'primary.100',
+                            borderColor: 'primary.dark'
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input')
+                          input.type = 'file'
+                          input.accept = 'image/*'
+                          input.multiple = true
+                          input.onchange = (e) => handleFileUpload(e, position.id, 'images')
+                          input.click()
+                        }}
+                      >
+                        <i className="ri-image-add-line text-4xl text-primary mb-2" />
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
+                          Cliquez pour ajouter des images
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Formats acceptés: JPG, PNG, GIF, WebP (Max: 10MB par fichier)
+                        </Typography>
+                      </Box>
+
+                      {/* Aperçu des images */}
+                      {position.images && position.images.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                            Images ajoutées ({position.images.length})
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                            {position.images.map((image, index) => (
+                              <Box 
+                                key={index}
+                                sx={{ 
+                                  position: 'relative', 
+                                  borderRadius: 1, 
+                                  overflow: 'visible', // Changed to visible so handle can extend outside
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  display: 'inline-block',
+                                  '&:hover .resize-handle': {
+                                    opacity: 1
+                                  }
+                                }}
+                              >
+                                <img 
+                                  src={image.url} 
+                                  alt={image.name}
+                                  style={{ 
+                                    width: `${image.width || 300}px`,
+                                    height: `${image.height || 225}px`,
+                                    objectFit: 'cover',
+                                    display: 'block',
+                                    borderRadius: '4px'
+                                  }}
+                                  draggable={false}
+                                />
+                                
+                                {/* Delete button */}
+                                <IconButton
+                                  size="small"
+                                  sx={{ 
+                                    position: 'absolute', 
+                                    top: 4, 
+                                    right: 4, 
+                                    bgcolor: 'error.main', 
+                                    color: 'white',
+                                    '&:hover': { bgcolor: 'error.dark' },
+                                    width: 24,
+                                    height: 24
+                                  }}
+                                  onClick={() => removeFile(position.id, 'images', index)}
+                                >
+                                  <i className="ri-close-line" style={{ fontSize: '12px' }} />
+                                </IconButton>
+                                
+                                {/* Resize handle */}
+                                <Box
+                                  className="resize-handle"
+                                  sx={{
+                                    position: 'absolute',
+                                    bottom: -1,  // Slight negative margin to stick to border
+                                    right: -1,   // Slight negative margin to stick to border
+                                    width: 14,
+                                    height: 14,
+                                    opacity: 0,
+                                    transition: 'opacity 0.2s',
+                                    cursor: 'se-resize',
+                                    background: 'linear-gradient(-45deg, transparent 30%, #666 30%, #666 60%, transparent 60%)',
+                                    borderTopLeftRadius: '2px',
+                                    '&:hover': {
+                                      background: 'linear-gradient(-45deg, transparent 30%, #333 30%, #333 60%, transparent 60%)',
+                                      opacity: '1 !important'
+                                    }
+                                  }}
+                                  onMouseDown={(e) => startImageResize(e, position.id, image.id)}
+                                />
+                                
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+
+                  {/* Section Documents */}
+                  <Accordion sx={{ mb: 2 }}>
+                    <AccordionSummary expandIcon={<i className="ri-arrow-down-s-line" />}>
+                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className="ri-file-line" />
+                        Documents ({position.documents?.length || 0})
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Box 
+                        sx={{ 
+                          border: '2px dashed', 
+                          borderColor: 'info.main', 
+                          borderRadius: 2, 
+                          p: 3, 
+                          textAlign: 'center',
+                          bgcolor: 'info.50',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s',
+                          '&:hover': {
+                            bgcolor: 'info.100',
+                            borderColor: 'info.dark'
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input')
+                          input.type = 'file'
+                          input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt'
+                          input.multiple = true
+                          input.onchange = (e) => handleFileUpload(e, position.id, 'documents')
+                          input.click()
+                        }}
+                      >
+                        <i className="ri-file-add-line text-4xl text-info mb-2" />
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: 'info.main', mb: 1 }}>
+                          Cliquez pour ajouter des documents
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Formats acceptés: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (Max: 10MB par fichier)
+                        </Typography>
+                      </Box>
+
+                      {/* Liste des documents */}
+                      {position.documents && position.documents.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                            Documents ajoutés ({position.documents.length})
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {position.documents.map((doc, index) => (
+                              <Box 
+                                key={index} 
+                                sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 2, 
+                                  p: 1, 
+                                  border: '1px solid', 
+                                  borderColor: 'divider', 
+                                  borderRadius: 1,
+                                  bgcolor: 'background.paper'
+                                }}
+                              >
+                                <i className="ri-file-line text-2xl text-info" />
+                                <Box 
+                                  sx={{ flexGrow: 1, cursor: 'pointer' }}
+                                  onClick={() => {
+                                    if (doc.url) {
+                                      window.open(doc.url, '_blank')
+                                    }
+                                  }}
+                                >
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                    {doc.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {(() => {
+                                      const formatFileSize = (bytes) => {
+                                        if (bytes === 0) return '0 Bytes'
+                                        const k = 1024
+                                        const sizes = ['Bytes', 'KB', 'MB', 'GB']
+                                        const i = Math.floor(Math.log(bytes) / Math.log(k))
+                                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+                                      }
+                                      return formatFileSize(doc.size)
+                                    })()} • {doc.type || 'Document'}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (doc.url) {
+                                        window.open(doc.url, '_blank')
+                                      }
+                                    }}
+                                    color="primary"
+                                    title="Ouvrir le document"
+                                  >
+                                    <i className="ri-eye-line" />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      removeFile(position.id, 'documents', index)
+                                    }}
+                                    color="error"
+                                    title="Supprimer le document"
+                                  >
+                                    <i className="ri-delete-bin-line" />
+                                  </IconButton>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+
                   {/* Aide pour les formules */}
                   <Box sx={{ mb: 2, p: 2, bgcolor: 'info.50', borderRadius: 1, border: '1px solid', borderColor: 'info.200' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -2243,186 +2643,6 @@ const NewProjectForm = () => {
                       </Button>
                     </Box>
                   </Box>
-
-                  {/* Section Images */}
-                  {position.showImages && (
-                    <Box sx={{ mt: 3, p: 2, border: '2px dashed', borderColor: 'divider', borderRadius: 2 }}>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <i className="ri-image-line" />
-                        Images de la position
-                      </Typography>
-                      <Box 
-                        sx={{ 
-                          border: '2px dashed', 
-                          borderColor: 'primary.main', 
-                          borderRadius: 2, 
-                          p: 3, 
-                          textAlign: 'center',
-                          bgcolor: 'primary.50',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s',
-                          '&:hover': {
-                            bgcolor: 'primary.100',
-                            borderColor: 'primary.dark'
-                          }
-                        }}
-                        onClick={() => {
-                          const input = document.createElement('input')
-                          input.type = 'file'
-                          input.accept = 'image/*'
-                          input.multiple = true
-                          input.onchange = (e) => handleFileUpload(e, position.id, 'images')
-                          input.click()
-                        }}
-                      >
-                        <i className="ri-image-add-line text-4xl text-primary mb-2" />
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
-                          Cliquez pour ajouter des images
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Formats acceptés: JPG, PNG, GIF, WebP (Max: 5MB par fichier)
-                        </Typography>
-                      </Box>
-
-                      {/* Aperçu des images */}
-                      {position.images && position.images.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Images ajoutées ({position.images.length})
-                          </Typography>
-                          <Grid container spacing={1}>
-                            {position.images.map((image, index) => (
-                              <Grid item xs={6} sm={4} md={3} key={index}>
-                                <Box sx={{ position: 'relative', borderRadius: 1, overflow: 'hidden' }}>
-                                  <img 
-                                    src={image.url} 
-                                    alt={image.name}
-                                    style={{ 
-                                      width: '100%', 
-                                      height: '120px', 
-                                      objectFit: 'cover' 
-                                    }}
-                                  />
-                                  <IconButton
-                                    size="small"
-                                    sx={{ 
-                                      position: 'absolute', 
-                                      top: 4, 
-                                      right: 4, 
-                                      bgcolor: 'error.main', 
-                                      color: 'white',
-                                      '&:hover': { bgcolor: 'error.dark' }
-                                    }}
-                                    onClick={() => removeFile(position.id, 'images', index)}
-                                  >
-                                    <i className="ri-close-line" style={{ fontSize: '14px' }} />
-                                  </IconButton>
-                                  <Box sx={{ 
-                                    position: 'absolute', 
-                                    bottom: 0, 
-                                    left: 0, 
-                                    right: 0, 
-                                    bgcolor: 'rgba(0,0,0,0.7)', 
-                                    color: 'white', 
-                                    p: 0.5 
-                                  }}>
-                                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                                      {image.name}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </Grid>
-                            ))}
-                          </Grid>
-                        </Box>
-                      )}
-                    </Box>
-                  )}
-
-                  {/* Section Documents */}
-                  {position.showDocuments && (
-                    <Box sx={{ mt: 3, p: 2, border: '2px dashed', borderColor: 'divider', borderRadius: 2 }}>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <i className="ri-file-line" />
-                        Documents de la position
-                      </Typography>
-                      <Box 
-                        sx={{ 
-                          border: '2px dashed', 
-                          borderColor: 'info.main', 
-                          borderRadius: 2, 
-                          p: 3, 
-                          textAlign: 'center',
-                          bgcolor: 'info.50',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s',
-                          '&:hover': {
-                            bgcolor: 'info.100',
-                            borderColor: 'info.dark'
-                          }
-                        }}
-                        onClick={() => {
-                          const input = document.createElement('input')
-                          input.type = 'file'
-                          input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt'
-                          input.multiple = true
-                          input.onchange = (e) => handleFileUpload(e, position.id, 'documents')
-                          input.click()
-                        }}
-                      >
-                        <i className="ri-file-add-line text-4xl text-info mb-2" />
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: 'info.main', mb: 1 }}>
-                          Cliquez pour ajouter des documents
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Formats acceptés: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (Max: 10MB par fichier)
-                        </Typography>
-                      </Box>
-
-                      {/* Liste des documents */}
-                      {position.documents && position.documents.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Documents ajoutés ({position.documents.length})
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            {position.documents.map((doc, index) => (
-                              <Box 
-                                key={index} 
-                                sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: 2, 
-                                  p: 1, 
-                                  border: '1px solid', 
-                                  borderColor: 'divider', 
-                                  borderRadius: 1,
-                                  bgcolor: 'background.paper'
-                                }}
-                              >
-                                <i className="ri-file-line text-2xl text-info" />
-                                <Box sx={{ flexGrow: 1 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                    {doc.name}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {(doc.size / 1024 / 1024).toFixed(2)} MB
-                                  </Typography>
-                                </Box>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => removeFile(position.id, 'documents', index)}
-                                  color="error"
-                                >
-                                  <i className="ri-delete-bin-line" />
-                                </IconButton>
-                              </Box>
-                            ))}
-                          </Box>
-                        </Box>
-                      )}
-                    </Box>
-                  )}
                 </CardContent>
               </Card>
             ))}
