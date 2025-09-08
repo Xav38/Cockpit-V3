@@ -722,7 +722,33 @@ const NewProjectForm = () => {
     }))
   }
 
-  // Fonction pour évaluer les formules
+    // Évaluateur simple de formules mathématiques (identique à EnhancedFormulaField)
+  const evaluateSimpleFormula = (expression) => {
+    try {
+      // Nettoyer l'expression
+      const cleaned = expression.replace(/\s+/g, '');
+      
+      // Vérifier que l'expression ne contient que des caractères autorisés
+      const allowedPattern = /^[0-9+\-*/().]*$/;
+      if (!allowedPattern.test(cleaned)) {
+        return null;
+      }
+
+      // Utiliser Function constructor pour une évaluation sûre
+      const func = new Function('return ' + cleaned);
+      const result = func();
+      
+      if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
+        return null;
+      }
+      
+      return result;
+    } catch (error) {
+      return null;
+    }
+  };
+
+// Fonction pour évaluer les formules
   const evaluateFormula = (formula, position, line) => {
     if (!formula || typeof formula !== 'string') return 0
 
@@ -768,15 +794,95 @@ const NewProjectForm = () => {
     }
   }
 
+  // Version compatible quotator-demo pour updateLine
+  const updateLine = (positionId, lineId, updates) => {
+    console.log('updateLine called with:', { positionId, lineId, updates });
+    setProjectData(prev => {
+      const newData = {
+        ...prev,
+        positions: prev.positions.map(pos => {
+          if (pos.id === positionId) {
+            return {
+              ...pos,
+              lignesChiffrage: pos.lignesChiffrage.map(ligne => {
+                if (ligne.id === lineId) {
+                  const updatedLine = { ...ligne, ...updates };
+                  
+                  // Recalculer les totaux si nécessaire
+                  if (updates.quantite !== undefined || updates.prixUnitAchat !== undefined || updates.coeff !== undefined) {
+                    const totals = calculateLineTotals(updatedLine);
+                    updatedLine.totalAchat = totals.totalAchat;
+                    updatedLine.pVente = totals.pVente;
+                    updatedLine.pUnitaire = totals.pUnitaire;
+                    updatedLine.marge = totals.marge;
+                  }
+                  
+                  console.log('Line updated with totals:', updatedLine);
+                  return updatedLine;
+                }
+                return ligne;
+              })
+            };
+          }
+          return pos;
+        })
+      };
+      console.log('Final updated data:', newData);
+      return newData;
+    });
+  };
+
+  // Gestion des formules compatible quotator-demo
+  const handleFormulaChangeForField = (positionId, lineId, fieldName, expression, isFormula) => {
+    console.log('handleFormulaChangeForField called:', { positionId, lineId, fieldName, expression, isFormula });
+    console.log('Expression type:', typeof expression, 'Expression value:', expression);
+    
+    if (isFormula && expression) {
+      // C'est une formule - utiliser evaluateSimpleFormula du composant
+      const result = evaluateSimpleFormula(expression);
+      console.log('Formula evaluation result:', { expression, result });
+      
+      const formulaObj = {
+        expression,
+        isValid: result !== null,
+        dependencies: [],
+        result: result
+      };
+      
+      console.log('Created formulaObj:', formulaObj);
+      const fieldValue = createFormulaFieldValue(formulaObj);
+      console.log('Created fieldValue:', fieldValue);
+      
+      updateLine(positionId, lineId, {
+        [fieldName]: result || 0,
+        [`${fieldName}Value`]: fieldValue,
+        [`${fieldName}Formula`]: expression
+      });
+    } else {
+      // Valeur numérique simple ou formule supprimée
+      const numValue = parseFloat(expression) || 0;
+      updateLine(positionId, lineId, {
+        [fieldName]: numValue,
+        [`${fieldName}Value`]: createSimpleFieldValue(numValue),
+        [`${fieldName}Formula`]: null
+      });
+    }
+  };
+
   const updateQuoteLine = (positionId, lineId, field, value) => {
-    setProjectData(prev => ({
+    console.log('updateQuoteLine called:', { positionId, lineId, field, value });
+    setProjectData(prev => {
+      console.log('Previous projectData:', prev);
+      const newData = {
       ...prev,
       positions: prev.positions.map(pos => {
         if (pos.id === positionId) {
+          console.log('Found matching position:', pos.id);
           const updatedPosition = {
             ...pos,
             lignesChiffrage: pos.lignesChiffrage.map(ligne => {
               if (ligne.id === lineId) {
+                console.log('Found matching line:', ligne.id, 'Current line data:', ligne);
                 const updatedLine = { ...ligne }
                 
                 // Pour les champs qui peuvent contenir des formules
@@ -787,6 +893,7 @@ const NewProjectForm = () => {
                   updatedLine.quantiteFormula = value
                   updatedLine.quantite = evaluateFormula(value, pos, ligne)
                 } else {
+                  console.log('Setting field directly:', field, '=', value);
                   updatedLine[field] = value
                 }
                 
@@ -799,6 +906,7 @@ const NewProjectForm = () => {
                   updatedLine.marge = totals.marge
                 }
                 
+                console.log('Final updated line:', updatedLine);
                 return updatedLine
               }
               return ligne
@@ -850,7 +958,10 @@ const NewProjectForm = () => {
         }
         return pos
       })
-    }))
+      };
+      console.log('Final newData state:', newData);
+      return newData;
+    })
   }
 
   const deleteQuoteLine = (positionId, lineId) => {
@@ -1623,13 +1734,18 @@ const NewProjectForm = () => {
 
         <TableCell sx={{ minWidth: 140 }}>
           <EnhancedFormulaField
-            value={line.prixUnitAchat}
-            formula={line.prixUnitAchatFormula}
-            onValueChange={(value) => {
-              onUpdateLine(position.id, line.id, 'prixUnitAchat', parseFloat(value) || 0)
+            value={line.prixUnitAchatValue || createSimpleFieldValue(line.prixUnitAchat || 0)}
+            onChange={(value) => {
+              console.log('Parent onChange (prixUnitAchat) called with:', value, typeof value);
+              updateLine(position.id, line.id, {
+                prixUnitAchat: value,
+                prixUnitAchatValue: createSimpleFieldValue(value),
+                prixUnitAchatFormula: null // Effacer la formule existante
+              });
             }}
-            onFormulaChange={(formula) => {
-              onUpdateLine(position.id, line.id, 'prixUnitAchatFormula', formula)
+            onFormulaChange={(expression, isFormula) => {
+              console.log('Parent onFormulaChange (prixUnitAchat) called with:', expression, isFormula);
+              handleFormulaChangeForField(position.id, line.id, 'prixUnitAchat', expression, isFormula);
             }}
             onOpenFormula={() => openFormulaSidebar({
               type: 'quoteLine',
@@ -1650,13 +1766,18 @@ const NewProjectForm = () => {
 
         <TableCell sx={{ minWidth: 120 }}>
           <EnhancedFormulaField
-            value={line.quantite}
-            formula={line.quantiteFormula}
-            onValueChange={(value) => {
-              onUpdateLine(position.id, line.id, 'quantite', parseFloat(value) || 0)
+            value={line.quantiteValue || createSimpleFieldValue(line.quantite || 0)}
+            onChange={(value) => {
+              console.log('Parent onChange (quantite) called with:', value, typeof value);
+              updateLine(position.id, line.id, {
+                quantite: value,
+                quantiteValue: createSimpleFieldValue(value),
+                quantiteFormula: null // Effacer la formule existante
+              });
             }}
-            onFormulaChange={(formula) => {
-              onUpdateLine(position.id, line.id, 'quantiteFormula', formula)
+            onFormulaChange={(expression, isFormula) => {
+              console.log('Parent onFormulaChange (quantite) called with:', expression, isFormula);
+              handleFormulaChangeForField(position.id, line.id, 'quantite', expression, isFormula);
             }}
             onOpenFormula={() => openFormulaSidebar({
               type: 'quoteLine',

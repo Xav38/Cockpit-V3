@@ -28,9 +28,8 @@ const evaluateSimpleFormula = (expression) => {
 };
 
 const EnhancedFormulaField = ({
-  value,
-  formula,
-  onValueChange,
+  value, // FieldValue: { value: number | Formula, isFormula: boolean }
+  onChange,
   onFormulaChange,
   onOpenFormula,
   placeholder,
@@ -45,109 +44,155 @@ const EnhancedFormulaField = ({
   isHighlighted = false,
   sx = {}
 }) => {
-  const [showResult, setShowResult] = useState(false);
-  const [isEditingFormula, setIsEditingFormula] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
+
+  // Fonction pour extraire la valeur numérique d'un FieldValue (copié de quotator-demo)
+  const getNumericValue = (fieldValue) => {
+    console.log('getNumericValue called with:', fieldValue);
+    if (!fieldValue) {
+      console.log('No fieldValue, returning 0');
+      return 0;
+    }
+    if (typeof fieldValue === 'number') {
+      console.log('fieldValue is number:', fieldValue);
+      return fieldValue;
+    }
+    
+    if (typeof fieldValue === 'object' && fieldValue.isFormula) {
+      const formula = fieldValue.value;
+      console.log('fieldValue is formula object:', formula);
+      
+      // FIX: Gérer la double imbrication
+      // Si formula.expression existe et contient result, l'utiliser
+      if (formula.expression && typeof formula.expression === 'object' && formula.expression.result !== undefined) {
+        console.log('Using nested formula.expression.result:', formula.expression.result);
+        return formula.expression.result;
+      }
+      
+      // Sinon utiliser formula.result si disponible
+      const result = formula.result ?? 0;
+      console.log('formula result:', result);
+      return result;
+    }
+    
+    const result = fieldValue.value ?? 0;
+    console.log('fieldValue.value:', result);
+    return result;
+  };
+
+  // Extraire les valeurs du FieldValue
+  console.log('🔍 Component received value:', JSON.stringify(value, null, 2));
+  const isFormula = value?.isFormula || false;
+  const numericValue = getNumericValue(value);
+  const formulaExpression = (isFormula && typeof value.value === 'object') ? value.value.expression : '';
+  console.log('🔍 Extracted formula expression:', formulaExpression);
 
   // Valeur affichée : résultat par défaut, formule en édition
   const getDisplayValue = () => {
-    if (isEditingFormula) {
-      return formula ? `=${formula}` : value || '';
+    console.log('getDisplayValue - isEditing:', isEditing, 'editValue:', editValue, 'numericValue:', numericValue);
+    if (isEditing) {
+      return editValue;
     }
     
-    if (formula) {
-      // Afficher le résultat calculé par défaut
-      return parseFloat(value || 0).toFixed(2);
-    }
-    
-    return value || '';
+    // Utiliser la valeur numérique calculée
+    const result = numericValue.toString();
+    console.log('getDisplayValue returning:', result);
+    return result;
   };
 
   const handleDoubleClick = () => {
-    if (!disabled) {
-      if (formula) {
-        // Passer en mode édition de formule pour voir/modifier
-        setIsEditingFormula(true);
-        setTimeout(() => inputRef.current?.focus(), 0);
+    console.log('handleDoubleClick called - value:', value, 'isFormula:', isFormula);
+    if (!disabled && !isSelectingFields) {
+      setIsEditing(true);
+      if (isFormula && typeof value.value === 'object') {
+        // FIX: Gérer la double imbrication pour l'expression
+        let expression;
+        if (value.value.expression && typeof value.value.expression === 'object') {
+          // Structure doublement imbriquée
+          expression = '=' + value.value.expression.expression;
+        } else if (typeof value.value.expression === 'string') {
+          // Structure normale
+          expression = '=' + value.value.expression;
+        } else {
+          expression = '0';
+        }
+        console.log('Setting editValue to formula:', expression);
+        setEditValue(expression);
       } else {
-        // Pas de formule, permettre l'édition normale
-        setIsEditingFormula(true);
-        setTimeout(() => inputRef.current?.focus(), 0);
+        const numValue = numericValue.toString();
+        console.log('Setting editValue to numeric:', numValue);
+        setEditValue(numValue);
       }
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
   const handleBlur = () => {
-    if (isEditingFormula) {
-      setIsEditingFormula(false);
+    if (isEditing) {
+      handleInputChange();
+      setIsEditing(false);
     }
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      // Appuyer sur Entrée valide la formule et sort du mode édition
-      const inputValue = e.target.value;
-      
-      // Si la valeur commence par =, traiter comme formule
-      if (inputValue.startsWith('=')) {
-        const formulaExpression = inputValue.slice(1);
-        const result = evaluateSimpleFormula(formulaExpression);
-        
-        if (result !== null) {
-          // Formule valide - sauvegarder la formule et le résultat
-          onFormulaChange && onFormulaChange(formulaExpression);
-          onValueChange && onValueChange(result);
-        } else {
-          // Formule invalide - garder juste la formule
-          onFormulaChange && onFormulaChange(formulaExpression);
-        }
-      }
-      
-      setIsEditingFormula(false);
-      inputRef.current?.blur();
+      handleInputChange();
+      setIsEditing(false);
+      // Ne pas déclencher blur qui appellerait handleInputChange à nouveau
+      e.preventDefault();
     } else if (e.key === 'Escape') {
-      // Échap annule les modifications
-      setIsEditingFormula(false);
-      inputRef.current?.blur();
+      setIsEditing(false);
+      setEditValue('');
     }
   };
 
-  const handleChange = (e) => {
-    const inputValue = e.target.value;
+  const handleInputChange = () => {
+    const inputValue = editValue;
+    console.log('handleInputChange called with:', inputValue);
     
-    if (isEditingFormula) {
-      // En mode édition de formule
-      if (inputValue.startsWith('=')) {
-        onFormulaChange && onFormulaChange(inputValue.slice(1));
-      } else {
-        onFormulaChange && onFormulaChange(inputValue);
+    if (inputValue.startsWith('=')) {
+      // C'est une formule
+      const expression = inputValue.slice(1);
+      console.log('Formula processing with expression:', expression);
+      
+      if (onFormulaChange) {
+        console.log('Calling onFormulaChange with:', expression, true);
+        onFormulaChange(expression, true);
       }
     } else {
-      // Mode normal
-      if (inputValue.startsWith('=')) {
-        onFormulaChange && onFormulaChange(inputValue.slice(1));
-      } else {
-        onValueChange && onValueChange(inputValue);
+      // C'est une valeur numérique simple
+      const newValue = parseFloat(inputValue) || 0;
+      console.log('Number processing:', { inputValue, newValue });
+      
+      if (onChange) {
+        console.log('Calling onChange with numeric value:', newValue);
+        onChange(newValue);
       }
+    }
+  };
+
+  const handleEditValueChange = (e) => {
+    const newValue = e.target.value;
+    
+    if (isEditing) {
+      // En mode édition, juste mettre à jour editValue
+      setEditValue(newValue);
+    } else {
+      // Mode normal - entrer automatiquement en édition pour la saisie
+      setIsEditing(true);
+      setEditValue(newValue);
     }
   };
 
   const handleFieldClick = (e) => {
-    console.log('Field clicked:', { isSelectingFields, fieldPath, hasOnFieldClick: !!onFieldClick });
     if (isSelectingFields && fieldPath && onFieldClick) {
       e.preventDefault();
       e.stopPropagation();
       onFieldClick(fieldPath);
-      return;
     }
-    
-    // Si on n'est pas en mode sélection, comportement normal
-    if (!isSelectingFields && !isEditingFormula) {
-      if (formula) {
-        setIsEditingFormula(true);
-        setTimeout(() => inputRef.current?.focus(), 0);
-      }
-    }
+    // Pas d'entrée automatique en édition sur clic simple
   };
 
   // Styles pour la mise en surbrillance
@@ -181,20 +226,20 @@ const EnhancedFormulaField = ({
         },
         cursor: 'pointer',
       };
-    } else if (formula) {
+    } else if (isFormula) {
       // Champ avec formule - style discret
       styles = {
         ...styles,
         ...baseStyles,
         '& .MuiInputBase-root': {
           ...baseStyles['& .MuiInputBase-root'],
-          fontFamily: isEditingFormula ? 'monospace' : 'inherit',
-          color: formula && !isEditingFormula ? '#2e7d32' : 'inherit', // Vert pour les résultats de formule
-          fontWeight: formula && !isEditingFormula ? 600 : 'inherit',
+          fontFamily: isEditing ? 'monospace' : 'inherit',
+          color: isFormula && !isEditing ? '#2e7d32' : 'inherit', // Vert pour les résultats de formule
+          fontWeight: isFormula && !isEditing ? 600 : 'inherit',
         },
         '& .MuiOutlinedInput-root': {
           '& fieldset': {
-            borderColor: formula ? '#ddd' : 'inherit',
+            borderColor: isFormula ? '#ddd' : 'inherit',
           },
         },
       };
@@ -216,21 +261,19 @@ const EnhancedFormulaField = ({
         size={size}
         fullWidth={fullWidth}
         label={label}
+        type="text" // Forcer le type text pour permettre les formules
         value={getDisplayValue()}
-        onChange={handleChange}
+        onChange={handleEditValueChange}
         onDoubleClick={handleDoubleClick}
         onClick={handleFieldClick}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        onFocus={() => {
-          if (formula && !showResult) {
-            setIsEditingFormula(true);
-          }
-        }}
         placeholder={placeholder}
         disabled={disabled}
+        inputProps={{
+          readOnly: isSelectingFields, // readOnly seulement en mode sélection
+        }}
         InputProps={{
-          readOnly: false, // Ne jamais être readonly pour permettre les clics
           endAdornment: (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {onOpenFormula && (
@@ -244,7 +287,7 @@ const EnhancedFormulaField = ({
                     className="ri-function-line" 
                     style={{ 
                       fontSize: '14px', 
-                      color: formula ? 'orange' : 'inherit' 
+                      color: isFormula ? 'orange' : 'inherit' 
                     }} 
                   />
                 </IconButton>
@@ -257,7 +300,7 @@ const EnhancedFormulaField = ({
       />
       
       {/* Indicateur triangle pour les formules */}
-      {formula && !isEditingFormula && (
+      {isFormula && !isEditing && (
         <Box
           sx={{
             position: 'absolute',
@@ -274,7 +317,7 @@ const EnhancedFormulaField = ({
       )}
       
       {/* Indicateur de formule */}
-      {formula && !isEditingFormula && (
+      {isFormula && !isEditing && (
         <Typography 
           variant="caption" 
           sx={{ 
@@ -290,7 +333,7 @@ const EnhancedFormulaField = ({
             borderColor: 'secondary.main',
             cursor: 'pointer',
           }}
-          title={`Formule: =${formula}`}
+          title={`Formule: =${isFormula && typeof value.value === 'object' ? value.value.expression : ''}`}
           onClick={handleDoubleClick}
         >
           f(x)
