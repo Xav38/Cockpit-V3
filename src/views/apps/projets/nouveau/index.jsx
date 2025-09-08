@@ -165,7 +165,6 @@ const NewProjectForm = () => {
   const [isSelectingFields, setIsSelectingFields] = useState(false)
   const [highlightedFields, setHighlightedFields] = useState([])
   const [formulaEngine, setFormulaEngine] = useState(null)
-  const [idCounter, setIdCounter] = useState(1)
   const [options, setOptions] = useState({
     statuts: [],
     users: [],
@@ -335,9 +334,10 @@ const NewProjectForm = () => {
 
   // Utility functions
   const generateId = () => {
-    const id = `id_${idCounter}`
-    setIdCounter(prev => prev + 1)
-    return id
+    // Utiliser timestamp + random pour garantir l'unicité même en cas de clics rapides
+    const timestamp = Date.now()
+    const random = Math.floor(Math.random() * 10000)
+    return `id_${timestamp}_${random}`
   }
 
   // Calculation functions
@@ -1870,7 +1870,7 @@ const NewProjectForm = () => {
               <IconButton
                 size="small"
                 onClick={() => onAddLine(position.id)}
-                color="primary"
+                color="success"
                 title="Ajouter une ligne"
               >
                 <i className="ri-add-line text-base" />
@@ -2380,17 +2380,8 @@ const NewProjectForm = () => {
         >
           <AccordionSummary expandIcon={<i className="ri-arrow-down-s-line" />}>
             <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-list-check-line" />
-              Positions ({projectData.positions.length})
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<i className="ri-add-line" />}
-                onClick={addPosition}
-                sx={{ ml: 'auto' }}
-              >
-                Ajouter une position
-              </Button>
+              <i className="ri-calculator-line" />
+              Chiffrage
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -2399,22 +2390,22 @@ const NewProjectForm = () => {
                 <CardHeader
                   title={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        Position {position.numero}
+                      <Typography variant="h6" sx={{ fontWeight: 600, minWidth: 'auto' }}>
+                        Position :
                       </Typography>
+                      <TextField
+                        size="small"
+                        placeholder="Numéro"
+                        value={position.numero}
+                        onChange={(e) => updatePosition(position.id, 'numero', e.target.value)}
+                        sx={{ width: 80 }}
+                      />
                       <TextField
                         size="small"
                         placeholder="Titre de la position"
                         value={position.titrePosition}
                         onChange={(e) => updatePosition(position.id, 'titrePosition', e.target.value)}
                         sx={{ flexGrow: 1, maxWidth: 300 }}
-                      />
-                      <TextField
-                        size="small"
-                        placeholder="Titre"
-                        value={position.titre}
-                        onChange={(e) => updatePosition(position.id, 'titre', e.target.value)}
-                        sx={{ flexGrow: 1, maxWidth: 200 }}
                       />
                       <TextField
                         size="small"
@@ -2428,10 +2419,10 @@ const NewProjectForm = () => {
                       <TextField
                         size="small"
                         type="number"
-                        label="% Gestion"
+                        label="% Gestion de projet"
                         value={position.projectManagementPercentage || 10}
                         onChange={(e) => updatePosition(position.id, 'projectManagementPercentage', parseFloat(e.target.value) || 10)}
-                        sx={{ width: 90 }}
+                        sx={{ width: 120 }}
                         InputProps={{ 
                           inputProps: { min: 0, max: 100, step: 0.1 },
                           endAdornment: <Typography variant="caption">%</Typography>
@@ -2440,42 +2431,32 @@ const NewProjectForm = () => {
                     </Box>
                   }
                   action={
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            size="small"
-                            checked={position.showProduction}
-                            onChange={(e) => updatePosition(position.id, 'showProduction', e.target.checked)}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <i className="ri-settings-line" style={{ fontSize: '16px' }} />
-                            <Typography variant="caption">Production</Typography>
-                          </Box>
-                        }
-                        sx={{ mr: 2 }}
-                      />
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <IconButton
+                        size="small"
+                        onClick={addPosition}
+                        title="Ajouter une position"
+                      >
+                        <i className="ri-add-line text-base" style={{ color: '#2e7d32' }} />
+                      </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => duplicatePosition(position.id)}
-                        color="info"
+                        sx={{ p: 0.5 }}
                         title="Dupliquer cette position"
                       >
-                        <i className="ri-file-copy-line" />
+                        <i className="ri-file-copy-line text-base" style={{ color: '#0288d1' }} />
                       </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => deletePosition(position.id)}
-                        color="error"
                         title="Supprimer cette position"
                       >
-                        <i className="ri-delete-bin-line" />
+                        <i className="ri-delete-bin-line" style={{ color: '#d32f2f' }} />
                       </IconButton>
                     </Box>
                   }
-                  sx={{ bgcolor: 'primary.50', '& .MuiCardHeader-title': { width: '100%' } }}
+                  sx={{ '& .MuiCardHeader-title': { width: '100%' } }}
                 />
                 <CardContent>
                   {/* Section Images */}
@@ -2884,6 +2865,21 @@ const NewProjectForm = () => {
                     </Box>
                   </Box>
                 </CardContent>
+                
+                {/* Section Production dépliable */}
+                <Accordion sx={{ mb: 2 }}>
+                  <AccordionSummary expandIcon={<i className="ri-arrow-down-s-line" />}>
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <i className="ri-settings-line" />
+                      Production
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary">
+                      Section Production - À développer par la suite
+                    </Typography>
+                  </AccordionDetails>
+                </Accordion>
               </Card>
             ))}
 
