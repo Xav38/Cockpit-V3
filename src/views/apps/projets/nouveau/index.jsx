@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 // Third-party Imports
@@ -608,14 +608,14 @@ const NewProjectForm = () => {
     }))
   }
 
-  const updatePosition = (positionId, field, value) => {
+  const updatePosition = useCallback((positionId, field, value) => {
     setProjectData(prev => ({
       ...prev,
       positions: prev.positions.map(pos =>
         pos.id === positionId ? { ...pos, [field]: value } : pos
       )
     }))
-  }
+  }, [])
 
   const deletePosition = (positionId) => {
     setProjectData(prev => ({
@@ -646,7 +646,7 @@ const NewProjectForm = () => {
   }
 
   // Quote line management functions
-  const addQuoteLine = (positionId) => {
+  const addQuoteLine = useCallback((positionId) => {
     const newLine = {
       id: generateId(),
       descriptif: '',
@@ -720,7 +720,7 @@ const NewProjectForm = () => {
         return pos
       })
     }))
-  }
+  }, [])
 
     // Évaluateur simple de formules mathématiques (identique à EnhancedFormulaField)
   const evaluateSimpleFormula = (expression) => {
@@ -869,7 +869,7 @@ const NewProjectForm = () => {
     }
   };
 
-  const updateQuoteLine = (positionId, lineId, field, value) => {
+  const updateQuoteLine = useCallback((positionId, lineId, field, value) => {
     console.log('updateQuoteLine called:', { positionId, lineId, field, value });
     setProjectData(prev => {
       console.log('Previous projectData:', prev);
@@ -962,9 +962,9 @@ const NewProjectForm = () => {
       console.log('Final newData state:', newData);
       return newData;
     })
-  }
+  }, [])
 
-  const deleteQuoteLine = (positionId, lineId) => {
+  const deleteQuoteLine = useCallback((positionId, lineId) => {
     setProjectData(prev => ({
       ...prev,
       positions: prev.positions.map(pos => {
@@ -1024,7 +1024,7 @@ const NewProjectForm = () => {
         return pos
       })
     }))
-  }
+  }, [])
 
   // Drag and drop handlers
   const sensors = useSensors(
@@ -1644,6 +1644,109 @@ const NewProjectForm = () => {
     )
   }
 
+  // Composants avec état local et debounce pour éviter les re-renders
+  const DebouncedDescriptionField = memo(({ initialValue, onUpdate, disabled, positionId, lineId }) => {
+    const [localValue, setLocalValue] = useState(initialValue || '');
+    const timeoutRef = useRef(null);
+
+    // Synchroniser avec la valeur initiale si elle change
+    useEffect(() => {
+      setLocalValue(initialValue || '');
+    }, [initialValue]);
+
+    const handleChange = (e) => {
+      const newValue = e.target.value;
+      setLocalValue(newValue);
+
+      // Débounce de 300ms avant de mettre à jour le parent
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        onUpdate(positionId, lineId, 'descriptif', newValue);
+      }, 300);
+    };
+
+    // Cleanup du timeout
+    useEffect(() => {
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }, []);
+
+    return (
+      <TextField
+        size="small"
+        fullWidth
+        multiline
+        rows={2}
+        placeholder="Description"
+        value={localValue}
+        onChange={handleChange}
+        disabled={disabled}
+        sx={{ 
+          '& .MuiInputBase-root': { 
+            fontSize: '0.875rem'
+          } 
+        }}
+      />
+    );
+  });
+
+  const DebouncedInfosField = memo(({ initialValue, onUpdate, disabled, positionId, lineId }) => {
+    const [localValue, setLocalValue] = useState(initialValue || '');
+    const timeoutRef = useRef(null);
+
+    // Synchroniser avec la valeur initiale si elle change
+    useEffect(() => {
+      setLocalValue(initialValue || '');
+    }, [initialValue]);
+
+    const handleChange = (e) => {
+      const newValue = e.target.value;
+      setLocalValue(newValue);
+
+      // Débounce de 300ms avant de mettre à jour le parent
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        onUpdate(positionId, lineId, 'infos', newValue);
+      }, 300);
+    };
+
+    // Cleanup du timeout
+    useEffect(() => {
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }, []);
+
+    return (
+      <TextField
+        size="small"
+        fullWidth
+        multiline
+        rows={2}
+        placeholder="Infos complémentaires"
+        value={localValue}
+        onChange={handleChange}
+        disabled={disabled}
+        sx={{ 
+          '& .MuiInputBase-root': { 
+            fontSize: '0.875rem'
+          } 
+        }}
+      />
+    );
+  });
+
   // Composant pour les lignes de chiffrage avec drag and drop
   const SortableQuoteLine = ({ line, position, onUpdateLine, onDeleteLine, onAddLine }) => {
     const {
@@ -1697,38 +1800,22 @@ const NewProjectForm = () => {
         </TableCell>
 
         <TableCell sx={{ minWidth: 150 }}>
-          <TextField
-            size="small"
-            fullWidth
-            multiline
-            rows={2}
-            placeholder="Description"
-            value={line.descriptif}
-            onChange={(e) => onUpdateLine(position.id, line.id, 'descriptif', e.target.value)}
+          <DebouncedDescriptionField
+            initialValue={line.descriptif}
+            onUpdate={onUpdateLine}
             disabled={isSpecialLine}
-            sx={{ 
-              '& .MuiInputBase-root': { 
-                fontSize: '0.875rem'
-              } 
-            }}
+            positionId={position.id}
+            lineId={line.id}
           />
         </TableCell>
 
         <TableCell sx={{ minWidth: 120 }}>
-          <TextField
-            size="small"
-            fullWidth
-            multiline
-            rows={2}
-            placeholder="Infos complémentaires"
-            value={line.infos}
-            onChange={(e) => onUpdateLine(position.id, line.id, 'infos', e.target.value)}
+          <DebouncedInfosField
+            initialValue={line.infos}
+            onUpdate={onUpdateLine}
             disabled={isSpecialLine}
-            sx={{ 
-              '& .MuiInputBase-root': { 
-                fontSize: '0.875rem'
-              } 
-            }}
+            positionId={position.id}
+            lineId={line.id}
           />
         </TableCell>
 
